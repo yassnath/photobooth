@@ -1,14 +1,5 @@
-# 📸 PixieBooth — Next-Gen Automated Photobooth & Self-Service Kiosk Ecosystem
 
-[![Node.js](https://img.shields.io/badge/Node.js-v22+-green.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-v5.7-blue.svg)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-v18.3-61dafb.svg)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-v6.4-purple.svg)](https://vitejs.dev/)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4.0-38bdf8.svg)](https://tailwindcss.com/)
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-emerald.svg)](https://supabase.com)
-[![License](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
-
-> **PixieBooth** is an enterprise-grade, fully automated Photobooth & Kiosk platform engineered for photo studios, weddings, corporate events, retail malls, and entertainment venues. Combining a vibrant, high-aesthetic touch-screen interface with automated dynamic QRIS payments, server-side voucher management, native hardware printing agents, and cloud-synchronized real-time admin monitoring.
+ **PixieBooth** is an enterprise-grade, fully automated Photobooth & Kiosk platform engineered for photo studios, weddings, corporate events, retail malls, and entertainment venues. Combining a vibrant, high-aesthetic touch-screen interface with automated dynamic QRIS payments, server-side voucher management, native hardware printing agents, and cloud-synchronized real-time admin monitoring.
 
 ---
 
@@ -100,5 +91,3 @@ graph TD
 ## 👨‍💻 Developer & Portfolio Info
 
 Designed and built as a **Commercial-Grade, Fully Automated Photobooth Software Solution**. Perfect for franchise expansion, event rentals, pop-up installations, and unattended retail experiences.
-
-Crafted with ❤️ by **[Yassnath](https://github.com/yassnath)**.
