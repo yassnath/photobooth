@@ -220,11 +220,9 @@ export function KioskApp() {
         {screen === "welcome" && (
           <WelcomeScreen
             key="welcome"
-            isDark={isDark}
             uiTheme={uiTheme}
             onStart={() => goTo("mode")}
             onDashboard={openDashboard}
-            onToggleDark={() => setIsDark((value) => !value)}
           />
         )}
 

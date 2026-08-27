@@ -1,4 +1,3 @@
-import { Moon, Sun } from "lucide-react";
 import { motion } from "motion/react";
 
 import { SAMPLE_PHOTOS } from "../data/photobooth";
@@ -7,14 +6,14 @@ import { pageAnimate, pageIn, pageOut, pageTransition } from "../components/shar
 import type { BoothThemeSettings } from "../types/photobooth";
 
 interface WelcomeScreenProps {
-  isDark: boolean;
+  isDark?: boolean;
   uiTheme: BoothThemeSettings;
   onStart: () => void;
   onDashboard: () => void;
-  onToggleDark: () => void;
+  onToggleDark?: () => void;
 }
 
-export function WelcomeScreen({ isDark, uiTheme, onStart, onDashboard, onToggleDark }: WelcomeScreenProps) {
+export function WelcomeScreen({ uiTheme, onStart, onDashboard }: WelcomeScreenProps) {
   return (
     <motion.div
       className="relative min-h-[100dvh] overflow-hidden px-4 py-8"
@@ -46,14 +45,6 @@ export function WelcomeScreen({ isDark, uiTheme, onStart, onDashboard, onToggleD
         className="absolute left-5 top-5 z-10 rounded-full border border-white/60 bg-white/50 px-4 py-2 text-xs font-black text-foreground shadow-sm backdrop-blur-sm transition-transform hover:scale-105 dark:bg-white/10"
       >
         Dashboard
-      </button>
-
-      <button
-        onClick={onToggleDark}
-        className="absolute right-5 top-5 z-10 rounded-full border border-white/60 bg-white/50 p-2.5 text-foreground shadow-sm backdrop-blur-sm transition-transform hover:scale-110 dark:bg-white/10"
-        aria-label="Toggle dark mode"
-      >
-        {isDark ? <Sun size={17} /> : <Moon size={17} />}
       </button>
 
       <div className="welcome-shell relative z-10 min-h-[calc(100dvh-4rem)] items-center justify-center gap-5 text-center sm:gap-7">
