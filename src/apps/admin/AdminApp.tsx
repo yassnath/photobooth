@@ -2,7 +2,7 @@ import type { CSSProperties, Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 
-import { DEFAULT_UI_THEME, FILTERS, TEMPLATES } from "../../app/data/photobooth";
+import { DEFAULT_UI_THEME, FILTERS, SAMPLE_BOOTHS, SAMPLE_SESSIONS, SAMPLE_VOUCHERS, TEMPLATES } from "../../app/data/photobooth";
 import { useLocalStorageState } from "../../app/hooks/useLocalStorageState";
 import { DashboardScreen } from "../../app/screens/DashboardScreen";
 import { LoginScreen } from "../../app/screens/LoginScreen";
@@ -41,10 +41,11 @@ export function AdminApp() {
     setUiTheme(bootstrap.config.theme || DEFAULT_UI_THEME);
     setFilters(bootstrap.config.filters || FILTERS);
     setFrames(bootstrap.config.frames || TEMPLATES);
-    setSessions(mergeSessionBackups(bootstrap.sessions, localSessions));
-    setVouchers(bootstrap.vouchers);
-    setBooths(bootstrap.booths);
-    setSessionPrice(bootstrap.config.sessionPrice);
+    const merged = mergeSessionBackups(bootstrap.sessions || [], localSessions || []);
+    setSessions(merged.length > 0 ? merged : SAMPLE_SESSIONS);
+    setVouchers(bootstrap.vouchers && bootstrap.vouchers.length > 0 ? bootstrap.vouchers : SAMPLE_VOUCHERS);
+    setBooths(bootstrap.booths && bootstrap.booths.length > 0 ? bootstrap.booths : SAMPLE_BOOTHS);
+    setSessionPrice(bootstrap.config.sessionPrice || 25_000);
   }, [setFilters, setFrames, setUiTheme]);
 
   useEffect(() => {

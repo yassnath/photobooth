@@ -9,6 +9,7 @@ import type {
   TemplateOption,
   Voucher,
 } from "../../app/types/photobooth";
+import { SAMPLE_BOOTHS, SAMPLE_SESSIONS, SAMPLE_VOUCHERS } from "../../app/data/photobooth";
 
 export class ApiError extends Error {
   status: number;
@@ -75,9 +76,9 @@ function handleStaticFallback<T>(path: string, init: RequestInit = {}): T | unde
     return {
       admin,
       config: { theme: null, filters: null, frames: null, sessionPrice: 25000 },
-      sessions: [],
-      vouchers: [],
-      booths: [],
+      sessions: SAMPLE_SESSIONS,
+      vouchers: SAMPLE_VOUCHERS,
+      booths: SAMPLE_BOOTHS,
     } as T;
   }
 

@@ -1,5 +1,6 @@
 import type {
   BoothBackgroundPreset,
+  BoothMonitor,
   BoothThemeSettings,
   CaptureMode,
   EditorState,
@@ -7,9 +8,11 @@ import type {
   FilterPreset,
   FrameLayout,
   ModeOption,
+  PhotoSession,
   Screen,
   TemplateCategory,
   TemplateOption,
+  Voucher,
 } from "../types/photobooth";
 
 interface SamplePortraitOptions {
@@ -280,3 +283,150 @@ export function getCaptureCount(layout: FrameLayout): number {
 export function getFilterCss(filterId: string, filters: FilterOption[] = FILTERS): string {
   return filters.find((filter) => filter.id === filterId)?.css || "";
 }
+
+export const SAMPLE_SESSIONS: PhotoSession[] = [
+  {
+    id: "session-20260827-01",
+    mode: "strip",
+    frameLayout: "1x4",
+    templateId: "han-river",
+    editor: { ...DEFAULT_EDITOR_STATE, filterId: "rose" },
+    photos: [SAMPLE_PHOTOS[0], SAMPLE_PHOTOS[1], SAMPLE_PHOTOS[2], SAMPLE_PHOTOS[3]],
+    consent: {
+      captureAccepted: true,
+      privacyAccepted: true,
+      gallerySharingAllowed: true,
+      acceptedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    },
+    createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+  },
+  {
+    id: "session-20260827-02",
+    mode: "photo",
+    frameLayout: "1x1",
+    templateId: "seoul-cafe",
+    editor: { ...DEFAULT_EDITOR_STATE, filterId: "vivid" },
+    photos: [SAMPLE_PHOTOS[4], SAMPLE_PHOTOS[5]],
+    consent: {
+      captureAccepted: true,
+      privacyAccepted: true,
+      gallerySharingAllowed: true,
+      acceptedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    },
+    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+  },
+  {
+    id: "session-20260827-03",
+    mode: "gif",
+    frameLayout: "1x3",
+    templateId: "y2k-chrome",
+    editor: { ...DEFAULT_EDITOR_STATE, filterId: "dreamy" },
+    photos: [SAMPLE_PHOTOS[6], SAMPLE_PHOTOS[7]],
+    consent: {
+      captureAccepted: true,
+      privacyAccepted: true,
+      gallerySharingAllowed: false,
+      acceptedAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    },
+    createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+  },
+  {
+    id: "session-20260827-04",
+    mode: "strip",
+    frameLayout: "1x2",
+    templateId: "bubblegum",
+    editor: { ...DEFAULT_EDITOR_STATE, filterId: "warm" },
+    photos: [SAMPLE_PHOTOS[1], SAMPLE_PHOTOS[3]],
+    consent: {
+      captureAccepted: true,
+      privacyAccepted: true,
+      gallerySharingAllowed: true,
+      acceptedAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+    },
+    createdAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+  },
+];
+
+export const SAMPLE_VOUCHERS: Voucher[] = [
+  {
+    id: "v-1",
+    code: "PIXIE2026",
+    discountType: "fixed",
+    discountValue: 10000,
+    maxUses: 100,
+    usedCount: 24,
+    active: true,
+    startsAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+  },
+  {
+    id: "v-2",
+    code: "KAWAII50",
+    discountType: "percent",
+    discountValue: 50,
+    maxUses: 50,
+    usedCount: 18,
+    active: true,
+    startsAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+  },
+  {
+    id: "v-3",
+    code: "STUDIOVIP",
+    discountType: "fixed",
+    discountValue: 15000,
+    maxUses: 20,
+    usedCount: 5,
+    active: true,
+    startsAt: null,
+    expiresAt: null,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+  },
+];
+
+export const SAMPLE_BOOTHS: BoothMonitor[] = [
+  {
+    id: "booth-main",
+    name: "Main Kiosk - Grand Indonesia",
+    online: true,
+    lastSeenAt: new Date().toISOString(),
+    version: "v1.2.0",
+    status: {
+      platform: "Windows 11 Kiosk",
+      printer: { available: true, name: "DNP DS620" },
+      queueLength: 0,
+      kioskScreen: "welcome",
+      uptimeSeconds: 86400,
+    },
+  },
+  {
+    id: "booth-02",
+    name: "Booth #2 - Mall Taman Anggrek",
+    online: true,
+    lastSeenAt: new Date(Date.now() - 1000 * 30).toISOString(),
+    version: "v1.2.0",
+    status: {
+      platform: "Windows 11 Kiosk",
+      printer: { available: true, name: "Canon SELPHY CP1500" },
+      queueLength: 1,
+      kioskScreen: "camera",
+      uptimeSeconds: 43200,
+    },
+  },
+  {
+    id: "booth-03",
+    name: "Pop-up Booth - Senayan City",
+    online: false,
+    lastSeenAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    version: "v1.1.9",
+    status: {
+      platform: "Windows 10 Pro",
+      printer: { available: false, error: "Out of paper" },
+      queueLength: 0,
+      kioskScreen: "idle",
+      uptimeSeconds: 12000,
+    },
+  },
+];
