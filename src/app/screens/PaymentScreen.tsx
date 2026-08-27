@@ -298,14 +298,14 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 p-4 backdrop-blur-md"
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 350, damping: 22 }}
-              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/50 to-white p-7 text-center shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-7 text-center shadow-2xl"
             >
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-500 shadow-xl dark:bg-emerald-950/70 dark:text-emerald-400">
                 <motion.div
