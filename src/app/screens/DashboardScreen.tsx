@@ -1185,7 +1185,7 @@ export function DashboardScreen({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-md"
             onClick={onCloseLoginSuccess}
           >
             <motion.div
@@ -1194,7 +1194,7 @@ export function DashboardScreen({
               exit={{ opacity: 0, scale: 0.88, y: 15 }}
               transition={{ type: "spring", stiffness: 350, damping: 24 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/70 to-white p-6 text-center shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 text-center shadow-2xl"
             >
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-pink-500 to-violet-600 text-3xl text-white shadow-xl">
                 ✨
@@ -1212,7 +1212,7 @@ export function DashboardScreen({
               </button>
               <button
                 onClick={onCloseLoginSuccess}
-                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                className="absolute right-4 top-4 rounded-full bg-rose-100/90 p-1.5 text-rose-500 hover:bg-rose-200 hover:text-rose-700 shadow-sm transition-colors dark:bg-rose-950/60 dark:text-rose-400"
                 aria-label="Tutup notifikasi"
               >
                 <X size={16} />
@@ -1234,7 +1234,7 @@ export function DashboardScreen({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-md"
             onClick={() => setConfirmModal(null)}
           >
             <motion.div
@@ -1243,7 +1243,7 @@ export function DashboardScreen({
               exit={{ scale: 0.88, opacity: 0, y: 15 }}
               transition={{ type: "spring", stiffness: 350, damping: 24 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/70 to-white p-6 shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 shadow-2xl"
             >
               <div className="flex items-start gap-4">
                 <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-lg ${
@@ -1301,7 +1301,7 @@ export function DashboardScreen({
 
               <button
                 onClick={() => setConfirmModal(null)}
-                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                className="absolute right-4 top-4 rounded-full bg-rose-100/90 p-1.5 text-rose-500 hover:bg-rose-200 hover:text-rose-700 shadow-sm transition-colors dark:bg-rose-950/60 dark:text-rose-400"
                 aria-label="Tutup"
               >
                 <X size={16} />
@@ -1317,7 +1317,7 @@ export function DashboardScreen({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-md"
             onClick={() => setActionResultModal(null)}
           >
             <motion.div
@@ -1326,7 +1326,7 @@ export function DashboardScreen({
               exit={{ scale: 0.88, opacity: 0, y: 15 }}
               transition={{ type: "spring", stiffness: 350, damping: 24 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/70 to-white p-6 text-center shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 text-center shadow-2xl"
             >
               <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-lg ${
                 actionResultModal.type === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-400' : actionResultModal.type === 'error' ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-950/70 dark:text-amber-400'
@@ -1355,7 +1355,7 @@ export function DashboardScreen({
 
               <button
                 onClick={() => setActionResultModal(null)}
-                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                className="absolute right-4 top-4 rounded-full bg-rose-100/90 p-1.5 text-rose-500 hover:bg-rose-200 hover:text-rose-700 shadow-sm transition-colors dark:bg-rose-950/60 dark:text-rose-400"
                 aria-label="Tutup"
               >
                 <X size={16} />
@@ -1380,7 +1380,7 @@ export function DashboardScreen({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-md"
             onClick={() => setEditVoucherModal(null)}
           >
             <motion.div
@@ -1389,7 +1389,7 @@ export function DashboardScreen({
               exit={{ scale: 0.88, opacity: 0, y: 15 }}
               transition={{ type: "spring", stiffness: 350, damping: 24 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-fuchsia-50/60 to-white p-6 shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 shadow-2xl"
             >
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-fuchsia-500 to-violet-600 text-white shadow-xl">
                 <Pencil size={24} />
@@ -1491,7 +1491,7 @@ export function DashboardScreen({
 
               <button
                 onClick={() => setEditVoucherModal(null)}
-                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                className="absolute right-4 top-4 rounded-full bg-rose-100/90 p-1.5 text-rose-500 hover:bg-rose-200 hover:text-rose-700 shadow-sm transition-colors dark:bg-rose-950/60 dark:text-rose-400"
                 aria-label="Tutup"
               >
                 <X size={16} />

@@ -388,7 +388,7 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-md"
             onClick={() => setVoucherModal(null)}
           >
             <motion.div
@@ -397,7 +397,7 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
               exit={{ scale: 0.88, opacity: 0, y: 15 }}
               transition={{ type: "spring", stiffness: 350, damping: 24 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/60 to-white p-6 text-center shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 text-center shadow-2xl"
             >
               <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-lg ${
                 voucherModal.type === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400'
@@ -441,7 +441,7 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
 
               <button
                 onClick={() => setVoucherModal(null)}
-                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                className="absolute right-4 top-4 rounded-full bg-rose-100/90 p-1.5 text-rose-500 hover:bg-rose-200 hover:text-rose-700 shadow-sm transition-colors dark:bg-rose-950/60 dark:text-rose-400"
                 aria-label="Tutup"
               >
                 <X size={16} />
