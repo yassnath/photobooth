@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, LoaderCircle, QrCode, RefreshCcw, Sparkles, Ticket, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, LoaderCircle, QrCode, RefreshCcw, Sparkles, Ticket, X, XCircle } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -437,6 +437,14 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
                 }`}
               >
                 {voucherModal.type === 'success' ? 'Gunakan Diskon' : 'Tutup'}
+              </button>
+
+              <button
+                onClick={() => setVoucherModal(null)}
+                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                aria-label="Tutup"
+              >
+                <X size={16} />
               </button>
             </motion.div>
           </motion.div>

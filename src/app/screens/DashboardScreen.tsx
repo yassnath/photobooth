@@ -1204,19 +1204,20 @@ export function DashboardScreen({
             onClick={() => setConfirmModal(null)}
           >
             <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              initial={{ scale: 0.88, opacity: 0, y: 15 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              exit={{ scale: 0.88, opacity: 0, y: 15 }}
+              transition={{ type: "spring", stiffness: 350, damping: 24 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md overflow-hidden rounded-3xl border border-white/30 bg-white/95 p-6 shadow-2xl backdrop-blur-md dark:bg-gray-900/95"
+              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/70 to-white p-6 shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
             >
               <div className="flex items-start gap-4">
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl shadow-md ${
-                  confirmModal.type === 'logout' ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400'
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-lg ${
+                  confirmModal.type === 'logout' ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/70 dark:text-amber-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400'
                 }`}>
-                  {confirmModal.type === 'logout' ? <LogOut size={22} /> : <Trash2 size={22} />}
+                  {confirmModal.type === 'logout' ? <LogOut size={24} /> : <Trash2 size={24} />}
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 pr-6">
                   <h3 className="text-base font-black text-foreground">
                     {confirmModal.type === 'logout' && 'Konfirmasi Logout'}
                     {confirmModal.type === 'clear_sessions' && 'Hapus Semua Sesi Foto'}
@@ -1224,8 +1225,8 @@ export function DashboardScreen({
                   </h3>
                   <p className="mt-1 text-xs font-semibold leading-relaxed text-muted-foreground">
                     {confirmModal.type === 'logout' && 'Apakah Anda yakin ingin keluar dari Dashboard Admin PixieBooth?'}
-                    {confirmModal.type === 'clear_sessions' && 'Tindakan ini akan menghapus riwayat sesi foto. Apakah Anda yakin?'}
-                    {confirmModal.type === 'delete_voucher' && `Voucher ${confirmModal.voucherCode} akan dihapus secara permanen dari database Supabase.`}
+                    {confirmModal.type === 'clear_sessions' && 'Tindakan ini akan menghapus riwayat sesi foto secara permanen.'}
+                    {confirmModal.type === 'delete_voucher' && `Voucher ${confirmModal.voucherCode} akan dihapus dari database.`}
                   </p>
                 </div>
               </div>
@@ -1234,7 +1235,7 @@ export function DashboardScreen({
                 <button
                   type="button"
                   onClick={() => setConfirmModal(null)}
-                  className="rounded-xl border border-white/60 bg-white/70 px-4 py-2.5 text-xs font-black text-muted-foreground transition-all hover:bg-white dark:bg-white/10"
+                  className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2.5 text-xs font-black text-muted-foreground transition-all hover:bg-white dark:bg-white/10"
                 >
                   Batal
                 </button>
@@ -1254,7 +1255,7 @@ export function DashboardScreen({
                     }
                     setConfirmModal(null);
                   }}
-                  className={`rounded-xl px-5 py-2.5 text-xs font-black text-white shadow-lg transition-transform hover:scale-105 ${
+                  className={`rounded-2xl px-5 py-2.5 text-xs font-black text-white shadow-lg transition-transform hover:scale-[1.02] ${
                     confirmModal.type === 'logout' ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-rose-500 to-red-600'
                   }`}
                 >
@@ -1263,6 +1264,14 @@ export function DashboardScreen({
                   {confirmModal.type === 'delete_voucher' && 'Ya, Hapus Voucher'}
                 </button>
               </div>
+
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                aria-label="Tutup"
+              >
+                <X size={16} />
+              </button>
             </motion.div>
           </motion.div>
         )}
