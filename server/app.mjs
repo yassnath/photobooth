@@ -705,8 +705,32 @@ main{width:min(100%,520px);text-align:center}img,video{display:block;width:min(1
       response.status(404).json({ error: "Voucher tidak ditemukan." });
       return;
     }
-    const active = request.body?.active === undefined ? voucher.active : request.body.active ? 1 : 0;
-    await database.run("UPDATE vouchers SET active = ?, updated_at = ? WHERE id = ?", active, Date.now(), voucher.id);
+    const body = request.body || {};
+    // Determine which fields to update
+    const active = body.active === undefined ? voucher.active : body.active ? 1 : 0;
+
+    // Full update fields (only if provided in body)
+    const discountType = body.discountType !== undefined
+      ? (body.discountType === "percent" ? "percent" : "fixed")
+      : voucher.discount_type;
+    const discountValue = body.discountValue !== undefined
+      ? Math.round(Number(body.discountValue))
+      : voucher.discount_value;
+    const maxUses = body.maxUses !== undefined
+      ? (body.maxUses === null || body.maxUses === "" ? null : Math.round(Number(body.maxUses)))
+      : voucher.max_uses;
+    const startsAt = body.startsAt !== undefined ? fromDateInput(body.startsAt) : voucher.starts_at;
+    const expiresAt = body.expiresAt !== undefined ? fromDateInput(body.expiresAt) : voucher.expires_at;
+
+    if (body.discountValue !== undefined && (!Number.isFinite(discountValue) || discountValue <= 0 || (discountType === "percent" && discountValue > 100))) {
+      response.status(400).json({ error: "Nilai diskon tidak valid." });
+      return;
+    }
+
+    await database.run(
+      "UPDATE vouchers SET discount_type = ?, discount_value = ?, max_uses = ?, starts_at = ?, expires_at = ?, active = ?, updated_at = ? WHERE id = ?",
+      discountType, discountValue, maxUses, startsAt, expiresAt, active, Date.now(), voucher.id
+    );
     response.json({ voucher: voucherJson(await database.get("SELECT * FROM vouchers WHERE id = ?", voucher.id)) });
   }));
 

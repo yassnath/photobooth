@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, Image, LogOut, MonitorCog, Palette, Plus, Power, RefreshCcw, ShieldCheck, Sliders, TicketPercent, Trash2, Upload, Wand2, Wifi, WifiOff, X } from "lucide-react";
+import { ArrowLeft, Download, Image, LogOut, MonitorCog, Palette, Pencil, Plus, Power, RefreshCcw, ShieldCheck, Sliders, TicketPercent, Trash2, Upload, Wand2, Wifi, WifiOff, X, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { BACKGROUND_PRESETS, DEFAULT_UI_THEME, FILTERS, SAMPLE_PHOTOS, TEMPLATE_CATEGORIES, TEMPLATES } from "../data/photobooth";
@@ -43,6 +43,14 @@ interface DashboardScreenProps {
     maxUses: number | null;
     startsAt: string | null;
     expiresAt: string | null;
+  }) => Promise<void>;
+  onUpdateVoucher: (id: string, patch: {
+    discountType?: "fixed" | "percent";
+    discountValue?: number;
+    maxUses?: number | null;
+    startsAt?: string | null;
+    expiresAt?: string | null;
+    active?: boolean;
   }) => Promise<void>;
   onToggleVoucher: (id: string, active: boolean) => Promise<void>;
   onDeleteVoucher: (id: string) => Promise<void>;
@@ -179,6 +187,7 @@ export function DashboardScreen({
   onUpdateFilters,
   onUpdateFrames,
   onCreateVoucher,
+  onUpdateVoucher,
   onToggleVoucher,
   onDeleteVoucher,
   onRefresh,
@@ -195,6 +204,16 @@ export function DashboardScreen({
     type: "success" | "error" | "info";
     title: string;
     message: string;
+  } | null>(null);
+  const [editVoucherModal, setEditVoucherModal] = useState<{
+    id: string;
+    code: string;
+    discountType: "fixed" | "percent";
+    discountValue: number;
+    maxUses: number | null;
+    startsAt: string;
+    expiresAt: string;
+    saving: boolean;
   } | null>(null);
 
   const showActionResult = (type: "success" | "error" | "info", title: string, message: string) => {
@@ -756,11 +775,11 @@ export function DashboardScreen({
                 </div>
 
                 <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/70 dark:border-white/10 dark:bg-white/10">
-                  <div className="grid min-w-[42rem] grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_6rem_7rem_4rem] gap-3 border-b border-border px-4 py-3 text-[11px] font-black uppercase text-muted-foreground">
-                    <span>Kode</span><span>Diskon</span><span>Kuota</span><span>Status</span><span />
+                  <div className="grid min-w-[48rem] grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_6rem_7rem_6rem] gap-3 border-b border-border px-4 py-3 text-[11px] font-black uppercase text-muted-foreground">
+                    <span>Kode</span><span>Diskon</span><span>Kuota</span><span>Status</span><span>Aksi</span>
                   </div>
                   {vouchers.map((voucher) => (
-                    <div key={voucher.id} className="grid min-w-[42rem] grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_6rem_7rem_4rem] items-center gap-3 border-b border-border/60 px-4 py-3 text-sm last:border-0">
+                    <div key={voucher.id} className="grid min-w-[48rem] grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_6rem_7rem_6rem] items-center gap-3 border-b border-border/60 px-4 py-3 text-sm last:border-0">
                       <div className="min-w-0">
                         <p className="truncate font-mono font-black text-foreground">{voucher.code}</p>
                         <p className="truncate text-[11px] font-semibold text-muted-foreground">{voucher.expiresAt ? `s.d. ${formatDate(voucher.expiresAt)}` : "Tanpa kedaluwarsa"}</p>
@@ -776,14 +795,33 @@ export function DashboardScreen({
                         />
                         {voucher.active ? "Aktif" : "Nonaktif"}
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmModal({ type: "delete_voucher", voucherId: voucher.id, voucherCode: voucher.code })}
-                        className="grid h-9 w-9 place-items-center rounded-lg text-rose-500 hover:bg-rose-50"
-                        aria-label={`Hapus voucher ${voucher.code}`}
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditVoucherModal({
+                            id: voucher.id,
+                            code: voucher.code,
+                            discountType: voucher.discountType as "fixed" | "percent",
+                            discountValue: voucher.discountValue,
+                            maxUses: voucher.maxUses,
+                            startsAt: voucher.startsAt ? new Date(voucher.startsAt).toISOString().slice(0, 16) : "",
+                            expiresAt: voucher.expiresAt ? new Date(voucher.expiresAt).toISOString().slice(0, 16) : "",
+                            saving: false,
+                          })}
+                          className="grid h-9 w-9 place-items-center rounded-lg text-fuchsia-500 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30"
+                          aria-label={`Edit voucher ${voucher.code}`}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmModal({ type: "delete_voucher", voucherId: voucher.id, voucherCode: voucher.code })}
+                          className="grid h-9 w-9 place-items-center rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          aria-label={`Hapus voucher ${voucher.code}`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {vouchers.length === 0 && <p className="p-5 text-sm font-bold text-muted-foreground">Belum ada voucher server-side.</p>}
@@ -1288,6 +1326,132 @@ export function DashboardScreen({
                   actionResultModal.type === 'success' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : actionResultModal.type === 'error' ? 'bg-gradient-to-r from-rose-500 to-red-600' : 'bg-gradient-to-r from-amber-400 to-orange-500'
                 }`}
               />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {editVoucherModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            onClick={() => setEditVoucherModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.88, opacity: 0, y: 15 }}
+              transition={{ type: "spring", stiffness: 350, damping: 24 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-fuchsia-50/60 to-white p-6 shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+            >
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-fuchsia-500 to-violet-600 text-white shadow-xl">
+                <Pencil size={24} />
+              </div>
+              <h3 className="mt-4 text-center text-lg font-black text-foreground">Edit Voucher</h3>
+              <p className="mt-1 text-center font-mono text-xs font-bold text-muted-foreground">{editVoucherModal.code}</p>
+
+              <div className="mt-5 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-1 text-xs font-black text-foreground">
+                    Tipe Diskon
+                    <select
+                      value={editVoucherModal.discountType}
+                      onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, discountType: e.target.value as "fixed" | "percent" } : null)}
+                      className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                    >
+                      <option value="fixed">Nominal (Rp)</option>
+                      <option value="percent">Persentase (%)</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-xs font-black text-foreground">
+                    Nilai Diskon
+                    <input
+                      type="number"
+                      min={1}
+                      value={editVoucherModal.discountValue}
+                      onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, discountValue: Math.max(1, Number(e.target.value) || 1) } : null)}
+                      className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                    />
+                  </label>
+                </div>
+                <label className="space-y-1 text-xs font-black text-foreground">
+                  Kuota Penggunaan
+                  <input
+                    type="number"
+                    min={1}
+                    value={editVoucherModal.maxUses ?? ""}
+                    onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, maxUses: e.target.value ? Math.max(1, Number(e.target.value)) : null } : null)}
+                    placeholder="Tanpa batas"
+                    className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-1 text-xs font-black text-foreground">
+                    Mulai Berlaku
+                    <input
+                      type="datetime-local"
+                      value={editVoucherModal.startsAt}
+                      onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, startsAt: e.target.value } : null)}
+                      className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs font-black text-foreground">
+                    Kedaluwarsa
+                    <input
+                      type="datetime-local"
+                      value={editVoucherModal.expiresAt}
+                      onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, expiresAt: e.target.value } : null)}
+                      className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditVoucherModal(null)}
+                  className="flex-1 rounded-2xl border border-white/60 bg-white/70 py-3 text-xs font-black text-muted-foreground transition-all hover:bg-white dark:bg-white/10"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={editVoucherModal.saving}
+                  onClick={async () => {
+                    setEditVoucherModal((curr) => curr ? { ...curr, saving: true } : null);
+                    try {
+                      await onUpdateVoucher(editVoucherModal.id, {
+                        discountType: editVoucherModal.discountType,
+                        discountValue: editVoucherModal.discountValue,
+                        maxUses: editVoucherModal.maxUses,
+                        startsAt: editVoucherModal.startsAt ? new Date(editVoucherModal.startsAt).toISOString() : null,
+                        expiresAt: editVoucherModal.expiresAt ? new Date(editVoucherModal.expiresAt).toISOString() : null,
+                      });
+                      setEditVoucherModal(null);
+                      showActionResult("success", "Voucher Berhasil Diperbarui! ✨", `Voucher ${editVoucherModal.code} telah berhasil diperbarui.`);
+                    } catch (error) {
+                      setEditVoucherModal((curr) => curr ? { ...curr, saving: false } : null);
+                      showActionResult("error", "Gagal Memperbarui Voucher ❌", error instanceof Error ? error.message : "Voucher gagal diperbarui.");
+                    }
+                  }}
+                  className="flex-1 rounded-2xl bg-gradient-to-r from-fuchsia-500 to-violet-600 py-3 text-xs font-black text-white shadow-lg transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {editVoucherModal.saving ? "Menyimpan..." : "Simpan Perubahan"}
+                </button>
+              </div>
+
+              <button
+                onClick={() => setEditVoucherModal(null)}
+                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                aria-label="Tutup"
+              >
+                <X size={16} />
+              </button>
             </motion.div>
           </motion.div>
         )}

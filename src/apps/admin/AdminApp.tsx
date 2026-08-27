@@ -118,6 +118,11 @@ export function AdminApp() {
     setVouchers((current) => current.map((item) => (item.id === id ? voucher : item)));
   };
 
+  const updateVoucher = async (id: string, patch: Parameters<typeof photoboothApi.updateVoucher>[1]) => {
+    const { voucher } = await photoboothApi.updateVoucher(id, patch);
+    setVouchers((current) => current.map((item) => (item.id === id ? voucher : item)));
+  };
+
   const deleteVoucher = async (id: string) => {
     await photoboothApi.deleteVoucher(id);
     setVouchers((current) => current.filter((voucher) => voucher.id !== id));
@@ -169,6 +174,7 @@ export function AdminApp() {
           onUpdateFilters={updateFilters}
           onUpdateFrames={updateFrames}
           onCreateVoucher={createVoucher}
+          onUpdateVoucher={updateVoucher}
           onToggleVoucher={toggleVoucher}
           onDeleteVoucher={deleteVoucher}
           onRefresh={loadDashboard}

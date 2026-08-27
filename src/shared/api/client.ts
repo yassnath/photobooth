@@ -92,6 +92,17 @@ export const photoboothApi = {
     method: "PATCH",
     body: JSON.stringify({ active }),
   }),
+  updateVoucher: (id: string, patch: {
+    discountType?: "fixed" | "percent";
+    discountValue?: number;
+    maxUses?: number | null;
+    startsAt?: string | null;
+    expiresAt?: string | null;
+    active?: boolean;
+  }) => apiRequest<{ voucher: Voucher }>(`/api/admin/vouchers/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  }),
   deleteVoucher: (id: string) => apiRequest<void>(`/api/admin/vouchers/${encodeURIComponent(id)}`, { method: "DELETE" }),
   clearSessions: () => apiRequest<void>("/api/admin/sessions", { method: "DELETE" }),
   quoteVoucher: (voucherCode: string) => apiRequest<VoucherQuote>("/api/payments/quote", {
