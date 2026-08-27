@@ -11,6 +11,7 @@
     "kiosk:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-kiosk-autostart.ps1",
     "kiosk:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-kiosk-autostart.ps1 -Remove",
     "start": "node server/index.mjs",
+    "test": "node server/test.mjs",
     "supabase:login": "supabase login",
     "supabase:link": "supabase link --project-ref cykevgvpgpzormkhfmmd",
     "supabase:push": "supabase db push --linked",

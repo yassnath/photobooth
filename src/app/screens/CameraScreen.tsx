@@ -319,9 +319,26 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
             />
           </motion.button>
 
-          <div className="flex h-12 w-12 items-center justify-center">
-            {!isCameraReady && status !== "requesting" && <AlertCircle size={18} className="text-yellow-300/80" aria-hidden="true" />}
-            {isCameraReady && <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" aria-label="Kamera siap" />}
+          <div className="flex h-12 items-center justify-center gap-2">
+            {devices.length > 1 ? (
+              <select
+                value={selectedDeviceId || ""}
+                onChange={(e) => selectDevice(e.target.value)}
+                className="rounded-xl border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white outline-none focus:border-pink-400"
+                aria-label="Pilih Perangkat Kamera"
+              >
+                {devices.map((dev, idx) => (
+                  <option key={dev.deviceId} value={dev.deviceId} className="bg-gray-900 text-white">
+                    {dev.label || `Kamera ${idx + 1}`}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                {!isCameraReady && status !== "requesting" && <AlertCircle size={18} className="text-yellow-300/80" aria-hidden="true" />}
+                {isCameraReady && <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" aria-label="Kamera siap" />}
+              </>
+            )}
           </div>
         </div>
       </div>
