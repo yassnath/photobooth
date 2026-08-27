@@ -43,6 +43,9 @@ export function startRetentionWorker(database, storage) {
     }
   };
   void execute();
+  if (process.env.VERCEL) {
+    return () => {};
+  }
   const timer = setInterval(() => void execute(), 30 * 60 * 1000);
   timer.unref();
   return () => clearInterval(timer);

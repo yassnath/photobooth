@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api/index.mjs"
+    },
+    {
+      "source": "/download/(.*)",
+      "destination": "/api/index.mjs"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -1,9 +1,17 @@
-import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import postgres from "postgres";
 
 import { createId, hashPassword, hashToken } from "./security.mjs";
+
+let SqliteDriver = null;
+async function getSqliteDriver() {
+  if (!SqliteDriver) {
+    const mod = await import("better-sqlite3");
+    SqliteDriver = mod.default || mod;
+  }
+  return SqliteDriver;
+}
 
 const sqliteSchema = `
   CREATE TABLE IF NOT EXISTS admins (
@@ -161,9 +169,7 @@ class SqliteExecutor {
 }
 
 class SqliteDatabase extends SqliteExecutor {
-  constructor(path) {
-    mkdirSync(dirname(path), { recursive: true });
-    const raw = new Database(path);
+  constructor(raw) {
     super(raw);
     this.driver = "sqlite";
     this.mutex = new AsyncMutex();
@@ -324,7 +330,10 @@ export async function openDatabase(config) {
     }
   }
 
-  const database = new SqliteDatabase(config.databasePath);
+  mkdirSync(dirname(config.databasePath), { recursive: true });
+  const Driver = await getSqliteDriver();
+  const raw = new Driver(config.databasePath);
+  const database = new SqliteDatabase(raw);
   await initializeDatabase(database, config);
   return database;
 }
