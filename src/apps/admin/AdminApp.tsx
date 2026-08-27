@@ -110,23 +110,29 @@ export function AdminApp() {
   };
 
   const createVoucher = async (draft: Parameters<typeof photoboothApi.createVoucher>[0]) => {
-    const { voucher } = await photoboothApi.createVoucher(draft);
-    setVouchers((current) => [voucher, ...current]);
+    const res = await photoboothApi.createVoucher(draft);
+    if (res?.voucher) {
+      setVouchers((current) => [res.voucher, ...current.filter((item): item is Voucher => Boolean(item && item.code))]);
+    }
   };
 
   const toggleVoucher = async (id: string, active: boolean) => {
-    const { voucher } = await photoboothApi.setVoucherActive(id, active);
-    setVouchers((current) => current.map((item) => (item.id === id ? voucher : item)));
+    const res = await photoboothApi.setVoucherActive(id, active);
+    if (res?.voucher) {
+      setVouchers((current) => current.filter((item): item is Voucher => Boolean(item && item.code)).map((item) => (item.id === id ? res.voucher : item)));
+    }
   };
 
   const updateVoucher = async (id: string, patch: Parameters<typeof photoboothApi.updateVoucher>[1]) => {
-    const { voucher } = await photoboothApi.updateVoucher(id, patch);
-    setVouchers((current) => current.map((item) => (item.id === id ? voucher : item)));
+    const res = await photoboothApi.updateVoucher(id, patch);
+    if (res?.voucher) {
+      setVouchers((current) => current.filter((item): item is Voucher => Boolean(item && item.code)).map((item) => (item.id === id ? res.voucher : item)));
+    }
   };
 
   const deleteVoucher = async (id: string) => {
-    await photoboothApi.deleteVoucher(id);
-    setVouchers((current) => current.filter((voucher) => voucher.id !== id));
+    await photoboothApi.deleteVoucher(id).catch(() => undefined);
+    setVouchers((current) => current.filter((voucher) => Boolean(voucher && voucher.id !== id)));
   };
 
   const clearSessions = async () => {

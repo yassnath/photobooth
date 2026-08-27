@@ -82,6 +82,51 @@ function handleStaticFallback<T>(path: string, init: RequestInit = {}): T | unde
     } as T;
   }
 
+  if (path === "/api/admin/vouchers" && method === "POST") {
+    let body: any = {};
+    try {
+      body = JSON.parse((init.body as string) || "{}");
+    } catch {}
+    const newVoucher: Voucher = {
+      id: "v-" + Date.now(),
+      code: String(body.code || "VOUCHER").trim().toUpperCase(),
+      discountType: body.discountType || "fixed",
+      discountValue: Number(body.discountValue) || 10000,
+      maxUses: body.maxUses ?? null,
+      usedCount: 0,
+      active: true,
+      startsAt: body.startsAt || null,
+      expiresAt: body.expiresAt || null,
+      createdAt: new Date().toISOString(),
+    };
+    return { voucher: newVoucher } as T;
+  }
+
+  if (path.startsWith("/api/admin/vouchers/") && method === "PATCH") {
+    const id = decodeURIComponent(path.replace("/api/admin/vouchers/", ""));
+    let body: any = {};
+    try {
+      body = JSON.parse((init.body as string) || "{}");
+    } catch {}
+    const updatedVoucher: Voucher = {
+      id,
+      code: String(body.code || "VOUCHER").trim().toUpperCase(),
+      discountType: body.discountType || "fixed",
+      discountValue: Number(body.discountValue) || 10000,
+      maxUses: body.maxUses ?? null,
+      usedCount: 0,
+      active: body.active ?? true,
+      startsAt: body.startsAt || null,
+      expiresAt: body.expiresAt || null,
+      createdAt: new Date().toISOString(),
+    };
+    return { voucher: updatedVoucher } as T;
+  }
+
+  if (path.startsWith("/api/admin/vouchers/") && method === "DELETE") {
+    return null as T;
+  }
+
   if (path.startsWith("/api/admin/")) {
     return { ok: true } as T;
   }

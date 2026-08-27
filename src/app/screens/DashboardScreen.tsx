@@ -415,9 +415,11 @@ export function DashboardScreen({
     ? `${voucher.discountValue}%`
     : `Rp${voucher.discountValue.toLocaleString("id-ID")}`;
 
+  const safeVouchers = (vouchers || []).filter((v): v is Voucher => Boolean(v && v.code));
+
   const exportVouchersCsv = () => {
     const headers = ["Kode Voucher", "Tipe Diskon", "Nilai Diskon", "Penggunaan", "Mulai Berlaku", "Kedaluwarsa", "Status"];
-    const rows = vouchers.map((v) => [
+    const rows = safeVouchers.map((v) => [
       v.code,
       v.discountType === "fixed" ? "Nominal (Rp)" : "Persentase (%)",
       v.discountType === "fixed" ? `Rp${v.discountValue}` : `${v.discountValue}%`,
@@ -812,7 +814,7 @@ export function DashboardScreen({
                   <div className="grid min-w-[48rem] grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_6rem_7rem_6rem] gap-3 border-b border-border px-4 py-3 text-[11px] font-black uppercase text-muted-foreground">
                     <span>Kode</span><span>Diskon</span><span>Kuota</span><span>Status</span><span>Aksi</span>
                   </div>
-                  {vouchers.map((voucher) => (
+                  {safeVouchers.map((voucher) => (
                     <div key={voucher.id} className="grid min-w-[48rem] grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_6rem_7rem_6rem] items-center gap-3 border-b border-border/60 px-4 py-3 text-sm last:border-0">
                       <div className="min-w-0">
                         <p className="truncate font-mono font-black text-foreground">{voucher.code}</p>
@@ -858,7 +860,7 @@ export function DashboardScreen({
                       </div>
                     </div>
                   ))}
-                  {vouchers.length === 0 && <p className="p-5 text-sm font-bold text-muted-foreground">Belum ada voucher server-side.</p>}
+                  {safeVouchers.length === 0 && <p className="p-5 text-sm font-bold text-muted-foreground">Belum ada voucher server-side.</p>}
                 </div>
               </section>
             )}
