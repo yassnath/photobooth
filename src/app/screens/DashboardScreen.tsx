@@ -415,6 +415,28 @@ export function DashboardScreen({
     ? `${voucher.discountValue}%`
     : `Rp${voucher.discountValue.toLocaleString("id-ID")}`;
 
+  const exportVouchersCsv = () => {
+    const headers = ["Kode Voucher", "Tipe Diskon", "Nilai Diskon", "Penggunaan", "Mulai Berlaku", "Kedaluwarsa", "Status"];
+    const rows = vouchers.map((v) => [
+      v.code,
+      v.discountType === "fixed" ? "Nominal (Rp)" : "Persentase (%)",
+      v.discountType === "fixed" ? `Rp${v.discountValue}` : `${v.discountValue}%`,
+      `${v.usedCount}/${v.maxUses ?? "Unlim"}`,
+      v.startsAt ? formatDate(v.startsAt) : "Sekarang",
+      v.expiresAt ? formatDate(v.expiresAt) : "Tanpa Batas",
+      v.active ? "Aktif" : "Nonaktif",
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.map((cell) => `"${cell}"`).join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `pixiebooth-laporan-voucher-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const renderMetric = (label: string, value: number | string) => (
     <div className="rounded-2xl border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/10">
       <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -677,9 +699,18 @@ export function DashboardScreen({
                     <h2 className="text-xl font-black text-foreground">Voucher & Discount</h2>
                     <p className="mt-1 text-sm font-semibold text-muted-foreground">Diskon dihitung server sebelum QRIS dinamis dibuat.</p>
                   </div>
-                  <div className="rounded-xl bg-white/75 px-4 py-2 text-right shadow-sm dark:bg-white/10">
-                    <p className="text-[10px] font-black uppercase text-muted-foreground">Harga sesi</p>
-                    <p className="text-lg font-black text-primary">Rp{sessionPrice.toLocaleString("id-ID")}</p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={exportVouchersCsv}
+                      className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/85 px-4 py-2.5 text-xs font-black text-foreground shadow-sm transition-all hover:bg-white dark:border-white/10 dark:bg-white/10"
+                    >
+                      <Download size={15} className="text-primary" /> Ekspor CSV
+                    </button>
+                    <div className="rounded-xl bg-white/75 px-4 py-2 text-right shadow-sm dark:bg-white/10">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground">Harga sesi</p>
+                      <p className="text-lg font-black text-primary">Rp{sessionPrice.toLocaleString("id-ID")}</p>
+                    </div>
                   </div>
                 </div>
 
