@@ -50,13 +50,25 @@ function createFilter(editor: EditorState, filters: FilterOption[]) {
 async function createPhotoCanvas(options: ResultExportOptions) {
   const { photos, frameLayout, template, editor, filters, brandName } = options;
   const shotCount = getCaptureCount(frameLayout);
-  const width = 720;
-  const padding = 30;
-  const gap = 12;
-  const captionHeight = 76;
+
+  let width = 600;
+  let height = 1800; // Default 5cm x 15cm (1:3 ratio) for 1x3 & 1x4
+
+  if (frameLayout === "1x1") {
+    width = 600;
+    height = 800; // 3cm x 4cm (3:4 ratio)
+  } else if (frameLayout === "1x2") {
+    width = 600;
+    height = 1200; // 5cm x 10cm (1:2 ratio)
+  }
+
+  const padding = 24;
+  const gap = frameLayout === "1x4" ? 10 : 14;
+  const captionHeight = 56;
   const photoWidth = width - padding * 2;
-  const photoHeight = shotCount === 1 ? 820 : Math.round(photoWidth * 8 / 13);
-  const height = padding + shotCount * photoHeight + (shotCount - 1) * gap + captionHeight;
+  const availablePhotoHeight = height - padding * 2 - (shotCount - 1) * gap - captionHeight;
+  const photoHeight = Math.floor(availablePhotoHeight / shotCount);
+
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -66,8 +78,8 @@ async function createPhotoCanvas(options: ResultExportOptions) {
   context.fillStyle = template?.color || "#FFFFFF";
   context.fillRect(0, 0, width, height);
   context.strokeStyle = template?.accent || "#EC4899";
-  context.lineWidth = 12;
-  context.strokeRect(6, 6, width - 12, height - 12);
+  context.lineWidth = 10;
+  context.strokeRect(5, 5, width - 10, height - 10);
 
   const safePhotos = photos.length > 0 ? photos : [];
   const images = await Promise.all(Array.from({ length: shotCount }, (_, index) => loadImage(safePhotos[index] || safePhotos[index % safePhotos.length])));
@@ -82,8 +94,8 @@ async function createPhotoCanvas(options: ResultExportOptions) {
 
   context.fillStyle = template?.accent || "#6B21A8";
   context.textAlign = "center";
-  context.font = "700 24px Nunito, sans-serif";
-  context.fillText(editor.caption.trim() || `${brandName} memories`, width / 2, height - 30);
+  context.font = "700 20px Nunito, sans-serif";
+  context.fillText(editor.caption.trim() || `${brandName} memories`, width / 2, height - 22);
   return canvas;
 }
 

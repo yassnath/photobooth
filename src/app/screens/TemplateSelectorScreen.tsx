@@ -124,7 +124,12 @@ export function TemplateSelectorScreen({ sessionEndsAt, onBack, onSelect, templa
               className={`relative flex min-w-0 flex-col items-center gap-1.5 rounded-xl border-2 p-2 transition-all ${selected === template.id ? "border-pink-400 bg-white shadow-md dark:bg-white/10" : "border-white/60 bg-white/55 hover:bg-white dark:bg-white/5"}`}
               onClick={() => setSelected(template.id)}
             >
-              <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg text-2xl" style={{ backgroundColor: template.color, border: `2px solid ${template.accent}` }}>
+              <div
+                className={`relative flex w-full items-center justify-center overflow-hidden rounded-lg text-2xl ${
+                  layout === "1x1" ? "aspect-[3/4]" : layout === "1x2" ? "aspect-[1/2]" : "aspect-[1/3]"
+                }`}
+                style={{ backgroundColor: template.color, border: `2px solid ${template.accent}` }}
+              >
                 <div className="absolute inset-[12%] flex flex-col gap-[3%]">
                   {Array.from({ length: FRAME_LAYOUTS.find((item) => item.id === layout)?.shots || 1 }, (_, slot) => (
                     <span key={slot} className="min-h-0 flex-1 rounded-sm bg-white/70" />

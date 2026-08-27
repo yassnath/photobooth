@@ -254,10 +254,10 @@ export const STICKERS = [
 export const PAGE_STEPS: Screen[] = ["welcome", "mode", "payment", "consent", "template", "camera", "editor", "result"];
 
 export const FRAME_LAYOUTS: Array<{ id: FrameLayout; label: string; shots: number; description: string }> = [
-  { id: "1x1", label: "1 x 1", shots: 1, description: "Satu foto utama" },
-  { id: "1x2", label: "1 x 2", shots: 2, description: "Dua pose vertikal" },
-  { id: "1x3", label: "1 x 3", shots: 3, description: "Tiga pose vertikal" },
-  { id: "1x4", label: "1 x 4", shots: 4, description: "Empat pose klasik" },
+  { id: "1x1", label: "1 x 1", shots: 1, description: "3 cm x 4 cm" },
+  { id: "1x2", label: "1 x 2", shots: 2, description: "5 cm x 10 cm" },
+  { id: "1x3", label: "1 x 3", shots: 3, description: "5 cm x 15 cm" },
+  { id: "1x4", label: "1 x 4", shots: 4, description: "5 cm x 15 cm" },
 ];
 
 export const SESSION_DURATION_MS = 6 * 60 * 1000;
