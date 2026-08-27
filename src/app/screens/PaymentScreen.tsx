@@ -40,6 +40,12 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
   const [checkingVoucher, setCheckingVoucher] = useState(false);
   const [error, setError] = useState("");
   const [successPayment, setSuccessPayment] = useState<PaymentApiRecord | null>(null);
+  const [voucherModal, setVoucherModal] = useState<{
+    type: "success" | "error";
+    title: string;
+    message: string;
+    quote?: VoucherQuote;
+  } | null>(null);
   const initializedRef = useRef(false);
   const completedRef = useRef(false);
 
@@ -109,9 +115,30 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
     setVoucherQuote(null);
     setError("");
     try {
-      setVoucherQuote(await photoboothApi.quoteVoucher(voucherCode));
+      const quote = await photoboothApi.quoteVoucher(voucherCode);
+      setVoucherQuote(quote);
+      if (quote.valid) {
+        setVoucherModal({
+          type: "success",
+          title: "Voucher Berhasil Dipasang! 🎉",
+          message: `Kode ${voucherCode.toUpperCase()} terverifikasi! Potongan diskon Rp${quote.discountAmount.toLocaleString("id-ID")}.`,
+          quote,
+        });
+      } else {
+        setVoucherModal({
+          type: "error",
+          title: "Voucher Tidak Valid ❌",
+          message: quote.reason || "Voucher tidak dapat digunakan atau kuota telah habis.",
+        });
+      }
     } catch (voucherError) {
-      setError(voucherError instanceof Error ? voucherError.message : "Voucher tidak dapat diperiksa.");
+      const msg = voucherError instanceof Error ? voucherError.message : "Voucher tidak ditemukan atau sudah kedaluwarsa.";
+      setError(msg);
+      setVoucherModal({
+        type: "error",
+        title: "Pemeriksaan Voucher Gagal ⚠️",
+        message: msg,
+      });
     } finally {
       setCheckingVoucher(false);
     }
@@ -350,6 +377,67 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
                 transition={{ duration: 2.8, ease: "linear" }}
                 className="absolute bottom-0 left-0 h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500"
               />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {voucherModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            onClick={() => setVoucherModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.88, opacity: 0, y: 15 }}
+              transition={{ type: "spring", stiffness: 350, damping: 24 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/60 to-white p-6 text-center shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+            >
+              <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-lg ${
+                voucherModal.type === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400'
+              }`}>
+                {voucherModal.type === 'success' ? <Ticket size={32} /> : <XCircle size={32} />}
+              </div>
+
+              <h3 className="mt-4 text-lg font-black text-foreground">
+                {voucherModal.title}
+              </h3>
+              <p className="mt-2 text-xs font-semibold leading-relaxed text-muted-foreground">
+                {voucherModal.message}
+              </p>
+
+              {voucherModal.quote?.valid && (
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs font-bold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-300">
+                  <div className="flex justify-between">
+                    <span>Harga Sesi</span>
+                    <span>Rp{voucherModal.quote.baseAmount.toLocaleString("id-ID")}</span>
+                  </div>
+                  <div className="flex justify-between text-rose-500">
+                    <span>Diskon Voucher</span>
+                    <span>-Rp{voucherModal.quote.discountAmount.toLocaleString("id-ID")}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-emerald-200/60 pt-1.5 text-sm font-black text-emerald-700 dark:text-emerald-200">
+                    <span>Total Pembayaran</span>
+                    <span>Rp{voucherModal.quote.finalAmount.toLocaleString("id-ID")}</span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setVoucherModal(null)}
+                className={`mt-5 w-full rounded-2xl py-3 text-xs font-black text-white shadow-lg transition-transform hover:scale-[1.02] ${
+                  voucherModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'
+                }`}
+              >
+                {voucherModal.type === 'success' ? 'Gunakan Diskon' : 'Tutup'}
+              </button>
             </motion.div>
           </motion.div>
         )}

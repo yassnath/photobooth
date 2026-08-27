@@ -191,6 +191,24 @@ export function DashboardScreen({
     voucherId?: string;
     voucherCode?: string;
   } | null>(null);
+  const [actionResultModal, setActionResultModal] = useState<{
+    type: "success" | "error" | "info";
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const showActionResult = (type: "success" | "error" | "info", title: string, message: string) => {
+    setActionResultModal({ type, title, message });
+  };
+
+  useEffect(() => {
+    if (!actionResultModal) return undefined;
+    const timer = window.setTimeout(() => {
+      setActionResultModal(null);
+    }, 2200);
+    return () => window.clearTimeout(timer);
+  }, [actionResultModal]);
+
   const [filterDraft, setFilterDraft] = useState<FilterPreset>(defaultFilterDraft);
   const [filterBuilder, setFilterBuilder] = useState<FilterBuilder>(defaultBuilder);
   const [filterImport, setFilterImport] = useState("");
@@ -229,7 +247,7 @@ export function DashboardScreen({
     if (!showLoginSuccess) return undefined;
     const timer = window.setTimeout(() => {
       onCloseLoginSuccess?.();
-    }, 3000);
+    }, 2000);
     return () => window.clearTimeout(timer);
   }, [showLoginSuccess, onCloseLoginSuccess]);
 
@@ -269,7 +287,7 @@ export function DashboardScreen({
     };
 
     if (!nextFilter.css) {
-      saveNotice("CSS filter belum diisi.");
+      showActionResult("error", "CSS Filter Kosong ⚠️", "Masukkan sintaks CSS filter yang valid.");
       return;
     }
 
@@ -277,14 +295,14 @@ export function DashboardScreen({
       const exists = current.some((filter) => filter.id === nextFilter.id);
       return exists ? current.map((filter) => (filter.id === nextFilter.id ? nextFilter : filter)) : [...current, nextFilter];
     });
-    saveNotice("Filter tersimpan.");
+    showActionResult("success", "Preset Filter Disimpan! ✨", `Filter "${nextFilter.label}" berhasil disimpan.`);
   };
 
   const importFilters = () => {
     try {
       const importedFilters = parseFilterPayload(filterImport);
       if (importedFilters.length === 0) {
-        saveNotice("Tidak ada filter valid.");
+        showActionResult("error", "Impor Gagal ⚠️", "Tidak ada filter valid yang ditemukan dalam JSON.");
         return;
       }
 
@@ -294,9 +312,9 @@ export function DashboardScreen({
         return [...map.values()];
       });
       setFilterImport("");
-      saveNotice(`${importedFilters.length} filter diimport.`);
+      showActionResult("success", "Filter Berhasil Diimpor! 📦", `${importedFilters.length} preset filter baru berhasil ditambahkan.`);
     } catch {
-      saveNotice("Format JSON filter tidak valid.");
+      showActionResult("error", "Format JSON Salah ❌", "Format JSON payload filter tidak valid.");
     }
   };
 
@@ -315,14 +333,14 @@ export function DashboardScreen({
       const exists = current.some((frame) => frame.id === nextFrame.id);
       return exists ? current.map((frame) => (frame.id === nextFrame.id ? nextFrame : frame)) : [...current, nextFrame];
     });
-    saveNotice("Frame tersimpan.");
+    showActionResult("success", "Template Frame Disimpan! 🖼️", `Frame "${nextFrame.label}" berhasil disimpan.`);
   };
 
   const importFrames = () => {
     try {
       const importedFrames = parseFramePayload(frameImport);
       if (importedFrames.length === 0) {
-        saveNotice("Tidak ada frame valid.");
+        showActionResult("error", "Impor Gagal ⚠️", "Tidak ada frame valid yang ditemukan dalam JSON.");
         return;
       }
 
@@ -332,9 +350,9 @@ export function DashboardScreen({
         return [...map.values()];
       });
       setFrameImport("");
-      saveNotice(`${importedFrames.length} frame diimport.`);
+      showActionResult("success", "Frame Berhasil Diimpor! 📦", `${importedFrames.length} template frame baru berhasil ditambahkan.`);
     } catch {
-      saveNotice("Format JSON frame tidak valid.");
+      showActionResult("error", "Format JSON Salah ❌", "Format JSON payload frame tidak valid.");
     }
   };
 
@@ -356,16 +374,17 @@ export function DashboardScreen({
   const saveVoucher = async () => {
     setVoucherSaving(true);
     try {
+      const code = voucherDraft.code.trim().toUpperCase();
       await onCreateVoucher({
         ...voucherDraft,
-        code: voucherDraft.code.trim().toUpperCase(),
+        code,
         startsAt: voucherDraft.startsAt ? new Date(voucherDraft.startsAt).toISOString() : null,
         expiresAt: voucherDraft.expiresAt ? new Date(voucherDraft.expiresAt).toISOString() : null,
       });
       setVoucherDraft((current) => ({ ...current, code: "" }));
-      saveNotice("Voucher tersimpan di server.");
+      showActionResult("success", "Voucher Berhasil Ditambahkan! 🎉", `Kode voucher ${code} telah disimpan ke database.`);
     } catch (error) {
-      saveNotice(error instanceof Error ? error.message : "Voucher gagal disimpan.");
+      showActionResult("error", "Gagal Menambah Voucher ❌", error instanceof Error ? error.message : "Voucher gagal disimpan.");
     } finally {
       setVoucherSaving(false);
     }
@@ -1091,32 +1110,48 @@ export function DashboardScreen({
       <AnimatePresence>
         {showLoginSuccess && (
           <motion.div
-            initial={{ opacity: 0, y: -40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 320, damping: 24 }}
-            className="fixed top-5 right-5 z-50 flex items-center gap-3 overflow-hidden rounded-2xl border border-white/40 bg-gradient-to-r from-pink-500 via-fuchsia-600 to-violet-600 p-4 text-white shadow-2xl backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            onClick={onCloseLoginSuccess}
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 text-2xl shadow-inner">
-              ✨
-            </div>
-            <div className="pr-2">
-              <p className="text-sm font-black tracking-wide">Login Berhasil!</p>
-              <p className="text-xs text-white/90 font-medium">Selamat datang kembali, {adminName} 🎉</p>
-            </div>
-            <button
-              onClick={onCloseLoginSuccess}
-              className="ml-2 rounded-full bg-white/15 p-1.5 transition-colors hover:bg-white/30"
-              aria-label="Tutup notifikasi"
-            >
-              <X size={16} />
-            </button>
             <motion.div
-              initial={{ width: "100%" }}
-              animate={{ width: "0%" }}
-              transition={{ duration: 3, ease: "linear" }}
-              className="absolute bottom-0 left-0 h-1 bg-white/50"
-            />
+              initial={{ opacity: 0, scale: 0.88, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.88, y: 15 }}
+              transition={{ type: "spring", stiffness: 350, damping: 24 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/70 to-white p-6 text-center shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+            >
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-pink-500 to-violet-600 text-3xl text-white shadow-xl">
+                ✨
+              </div>
+              <h3 className="mt-4 text-xl font-black text-foreground">Login Berhasil!</h3>
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                Selamat datang kembali di Dashboard Admin, <span className="font-bold text-primary">{adminName}</span> 🎉
+              </p>
+              <button
+                type="button"
+                onClick={onCloseLoginSuccess}
+                className="mt-5 w-full rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-600 py-3 text-xs font-black text-white shadow-lg transition-transform hover:scale-[1.02]"
+              >
+                Masuk ke Dashboard
+              </button>
+              <button
+                onClick={onCloseLoginSuccess}
+                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                aria-label="Tutup notifikasi"
+              >
+                <X size={16} />
+              </button>
+              <motion.div
+                initial={{ width: "100%" }}
+                animate={{ width: "0%" }}
+                transition={{ duration: 2, ease: "linear" }}
+                className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-pink-500 to-violet-500"
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1169,9 +1204,15 @@ export function DashboardScreen({
                   type="button"
                   onClick={() => {
                     if (confirmModal.type === 'logout') onLogout();
-                    if (confirmModal.type === 'clear_sessions') onClearSessions();
+                    if (confirmModal.type === 'clear_sessions') {
+                      onClearSessions();
+                      showActionResult("success", "Sesi Foto Dibersihkan 🧹", "Riwayat sesi foto telah berhasil dibersihkan.");
+                    }
                     if (confirmModal.type === 'delete_voucher' && confirmModal.voucherId) {
-                      void onDeleteVoucher(confirmModal.voucherId).catch((error) => saveNotice(error.message));
+                      const code = confirmModal.voucherCode || "";
+                      void onDeleteVoucher(confirmModal.voucherId)
+                        .then(() => showActionResult("success", "Voucher Dihapus! 🗑️", `Voucher ${code} telah dihapus dari database.`))
+                        .catch((error) => showActionResult("error", "Gagal Menghapus ❌", error.message));
                     }
                     setConfirmModal(null);
                   }}
@@ -1184,6 +1225,69 @@ export function DashboardScreen({
                   {confirmModal.type === 'delete_voucher' && 'Ya, Hapus Voucher'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {actionResultModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            onClick={() => setActionResultModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.88, opacity: 0, y: 15 }}
+              transition={{ type: "spring", stiffness: 350, damping: 24 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/70 to-white p-6 text-center shadow-2xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+            >
+              <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-lg ${
+                actionResultModal.type === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-400' : actionResultModal.type === 'error' ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-950/70 dark:text-amber-400'
+              }`}>
+                {actionResultModal.type === 'success' && '✨'}
+                {actionResultModal.type === 'error' && '❌'}
+                {actionResultModal.type === 'info' && '⚡'}
+              </div>
+
+              <h3 className="mt-4 text-lg font-black text-foreground">
+                {actionResultModal.title}
+              </h3>
+              <p className="mt-2 text-xs font-semibold leading-relaxed text-muted-foreground">
+                {actionResultModal.message}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setActionResultModal(null)}
+                className={`mt-5 w-full rounded-2xl py-3 text-xs font-black text-white shadow-lg transition-transform hover:scale-[1.02] ${
+                  actionResultModal.type === 'success' ? 'bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-600' : actionResultModal.type === 'error' ? 'bg-gradient-to-r from-rose-500 to-red-600' : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                }`}
+              >
+                Tutup
+              </button>
+
+              <button
+                onClick={() => setActionResultModal(null)}
+                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-muted-foreground hover:bg-black/10 dark:bg-white/10"
+                aria-label="Tutup"
+              >
+                <X size={16} />
+              </button>
+
+              <motion.div
+                initial={{ width: "100%" }}
+                animate={{ width: "0%" }}
+                transition={{ duration: 2.2, ease: "linear" }}
+                className={`absolute bottom-0 left-0 h-1 ${
+                  actionResultModal.type === 'success' ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : actionResultModal.type === 'error' ? 'bg-gradient-to-r from-rose-500 to-red-600' : 'bg-gradient-to-r from-amber-400 to-orange-500'
+                }`}
+              />
             </motion.div>
           </motion.div>
         )}
