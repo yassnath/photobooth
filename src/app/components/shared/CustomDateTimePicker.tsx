@@ -24,7 +24,21 @@ export function CustomDateTimePicker({
   className = "",
 }: CustomDateTimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [popDirection, setPopDirection] = useState<"up" | "down">("down");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const toggleOpen = () => {
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 370 && rect.top > 370) {
+        setPopDirection("up");
+      } else {
+        setPopDirection("down");
+      }
+    }
+    setIsOpen(!isOpen);
+  };
 
   // Parse initial date or default to now
   const parsedDate = value ? new Date(value) : null;
@@ -158,7 +172,7 @@ export function CustomDateTimePicker({
       <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleOpen}
           className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition-all outline-none ${
             value
               ? "border-primary/50 bg-pink-50/70 text-foreground shadow-sm dark:border-pink-500/30 dark:bg-pink-950/30"
@@ -193,11 +207,13 @@ export function CustomDateTimePicker({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 4, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            initial={{ opacity: 0, y: popDirection === "up" ? 6 : -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: popDirection === "up" ? -4 : 4, scale: 1 }}
+            exit={{ opacity: 0, y: popDirection === "up" ? 6 : -6, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute left-0 z-50 w-72 sm:w-80 overflow-hidden rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/70 to-white p-4 shadow-2xl backdrop-blur-xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
+            className={`absolute left-0 z-50 w-72 sm:w-80 max-h-[75vh] overflow-y-auto rounded-3xl border border-white/40 bg-gradient-to-b from-white via-pink-50/95 to-white p-4 shadow-2xl backdrop-blur-xl dark:from-gray-900 dark:via-gray-900 dark:to-gray-950 ${
+              popDirection === "up" ? "bottom-full mb-2" : "top-full mt-1"
+            }`}
           >
             {/* Header: Month / Year Navigation */}
             <div className="flex items-center justify-between border-b border-border/50 pb-3">

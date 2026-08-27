@@ -1382,7 +1382,7 @@ export function DashboardScreen({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/35 p-4 backdrop-blur-md"
             onClick={() => setEditVoucherModal(null)}
           >
             <motion.div
@@ -1391,7 +1391,7 @@ export function DashboardScreen({
               exit={{ scale: 0.88, opacity: 0, y: 15 }}
               transition={{ type: "spring", stiffness: 350, damping: 24 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 shadow-2xl"
+              className="relative my-auto w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 shadow-2xl"
             >
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-fuchsia-500 to-violet-600 text-white shadow-xl">
                 <Pencil size={24} />

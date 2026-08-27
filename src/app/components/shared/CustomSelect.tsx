@@ -25,7 +25,21 @@ export function CustomSelect({
   className = "",
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [popDirection, setPopDirection] = useState<"up" | "down">("down");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const toggleOpen = () => {
+    if (!isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 220 && rect.top > 220) {
+        setPopDirection("up");
+      } else {
+        setPopDirection("down");
+      }
+    }
+    setIsOpen(!isOpen);
+  };
 
   const selectedOption = options.find((opt) => opt.value === value);
 
@@ -43,7 +57,7 @@ export function CustomSelect({
     <div ref={containerRef} className={`relative ${className}`}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleOpen}
         className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/80 bg-white/85 px-3 py-2.5 text-xs font-bold text-foreground shadow-sm transition-all hover:bg-white focus:border-primary focus:outline-none dark:border-white/10 dark:bg-white/10 dark:hover:bg-white/15"
       >
         <div className="flex min-w-0 items-center gap-2">
@@ -64,11 +78,13 @@ export function CustomSelect({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 4, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            initial={{ opacity: 0, y: popDirection === "up" ? 6 : -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: popDirection === "up" ? -4 : 4, scale: 1 }}
+            exit={{ opacity: 0, y: popDirection === "up" ? 6 : -6, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute left-0 right-0 z-50 overflow-hidden rounded-2xl border border-white/40 bg-white/95 p-1.5 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/95"
+            className={`absolute left-0 right-0 z-50 overflow-hidden rounded-2xl border border-white/40 bg-white/95 p-1.5 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/95 ${
+              popDirection === "up" ? "bottom-full mb-2" : "top-full mt-1"
+            }`}
           >
             <div className="max-h-56 space-y-1 overflow-y-auto scrollbar-hide">
               {options.map((option) => {
