@@ -63,9 +63,17 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
     if (!successPayment) return undefined;
     const timer = window.setTimeout(() => {
       handleProceed(successPayment);
-    }, 2800);
+    }, 3000);
     return () => window.clearTimeout(timer);
   }, [handleProceed, successPayment]);
+
+  useEffect(() => {
+    if (voucherModal?.type !== "success") return undefined;
+    const timer = window.setTimeout(() => {
+      setVoucherModal(null);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [voucherModal]);
 
   const createPayment = useCallback(async (code?: string) => {
     setLoading(true);
@@ -374,7 +382,7 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
               <motion.div
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
-                transition={{ duration: 2.8, ease: "linear" }}
+                transition={{ duration: 3.0, ease: "linear" }}
                 className="absolute bottom-0 left-0 h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500"
               />
             </motion.div>
@@ -438,6 +446,15 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
               >
                 {voucherModal.type === 'success' ? 'Gunakan Diskon' : 'Tutup'}
               </button>
+
+              {voucherModal.type === 'success' && (
+                <motion.div
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 3.0, ease: "linear" }}
+                  className="absolute bottom-0 left-0 h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500"
+                />
+              )}
 
               <button
                 onClick={() => setVoucherModal(null)}

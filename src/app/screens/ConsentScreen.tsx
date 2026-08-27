@@ -95,7 +95,7 @@ export function ConsentScreen({ sessionEndsAt, onBack, onContinue }: ConsentScre
             </label>
           </div>
 
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-pink-200/80 bg-white/80 p-3.5 shadow-sm backdrop-blur-sm dark:border-pink-900/40 dark:bg-white/10">
+          <div className="mt-6 sm:mt-7 flex items-center justify-between rounded-xl border border-pink-200/80 bg-white/80 p-3.5 shadow-sm backdrop-blur-sm dark:border-pink-900/40 dark:bg-white/10">
             <label className="flex cursor-pointer items-center gap-2.5">
               <input
                 type="checkbox"
