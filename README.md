@@ -1,3 +1,4 @@
+# 📸 PixieBooth — Next-Gen Automated Photobooth & Self-Service Kiosk Ecosystem
 
  **PixieBooth** is an enterprise-grade, fully automated Photobooth & Kiosk platform engineered for photo studios, weddings, corporate events, retail malls, and entertainment venues. Combining a vibrant, high-aesthetic touch-screen interface with automated dynamic QRIS payments, server-side voucher management, native hardware printing agents, and cloud-synchronized real-time admin monitoring.
 
