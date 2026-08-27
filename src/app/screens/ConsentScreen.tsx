@@ -19,6 +19,13 @@ export function ConsentScreen({ sessionEndsAt, onBack, onContinue }: ConsentScre
   const [gallerySharingAllowed, setGallerySharingAllowed] = useState(false);
   const canContinue = captureAccepted && privacyAccepted;
 
+  const allAccepted = captureAccepted && privacyAccepted && gallerySharingAllowed;
+  const toggleAll = (checked: boolean) => {
+    setCaptureAccepted(checked);
+    setPrivacyAccepted(checked);
+    setGallerySharingAllowed(checked);
+  };
+
   const submit = () => {
     if (!canContinue) return;
     onContinue({ captureAccepted, privacyAccepted, gallerySharingAllowed, acceptedAt: new Date().toISOString() });
@@ -48,12 +55,33 @@ export function ConsentScreen({ sessionEndsAt, onBack, onContinue }: ConsentScre
         </header>
 
         <section className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center">
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-emerald-900">
+          <div className="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-emerald-900">
             <ShieldCheck className="mt-0.5 shrink-0" size={22} />
             <div>
               <p className="font-black">Privasi kamu penting</p>
               <p className="mt-1 text-xs leading-relaxed text-emerald-800/75">Foto hanya dipakai sesuai pilihan di bawah dan dapat dihapus oleh operator melalui dashboard.</p>
             </div>
+          </div>
+
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-pink-200/80 bg-white/80 p-3.5 shadow-sm backdrop-blur-sm dark:border-pink-900/40 dark:bg-white/10">
+            <label className="flex cursor-pointer items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={allAccepted}
+                onChange={(e) => toggleAll(e.target.checked)}
+                className="h-5 w-5 rounded accent-pink-500 cursor-pointer"
+              />
+              <span className="text-xs font-black text-foreground">
+                Setujui Semua Persyaratan (Pilih Semua)
+              </span>
+            </label>
+            <button
+              type="button"
+              onClick={() => toggleAll(!allAccepted)}
+              className="rounded-lg bg-pink-500/10 px-3 py-1 text-xs font-black text-pink-600 transition-colors hover:bg-pink-500/20 dark:text-pink-300"
+            >
+              {allAccepted ? "Batal Centang Semua" : "Centang Semua ✨"}
+            </button>
           </div>
 
           <div className="space-y-3">
