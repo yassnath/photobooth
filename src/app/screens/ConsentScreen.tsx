@@ -63,27 +63,6 @@ export function ConsentScreen({ sessionEndsAt, onBack, onContinue }: ConsentScre
             </div>
           </div>
 
-          <div className="mb-4 flex items-center justify-between rounded-xl border border-pink-200/80 bg-white/80 p-3.5 shadow-sm backdrop-blur-sm dark:border-pink-900/40 dark:bg-white/10">
-            <label className="flex cursor-pointer items-center gap-2.5">
-              <input
-                type="checkbox"
-                checked={allAccepted}
-                onChange={(e) => toggleAll(e.target.checked)}
-                className="h-5 w-5 rounded accent-pink-500 cursor-pointer"
-              />
-              <span className="text-xs font-black text-foreground">
-                Setujui Semua Persyaratan (Pilih Semua)
-              </span>
-            </label>
-            <button
-              type="button"
-              onClick={() => toggleAll(!allAccepted)}
-              className="rounded-lg bg-pink-500/10 px-3 py-1 text-xs font-black text-pink-600 transition-colors hover:bg-pink-500/20 dark:text-pink-300"
-            >
-              {allAccepted ? "Batal Centang Semua" : "Centang Semua ✨"}
-            </button>
-          </div>
-
           <div className="space-y-3">
             <label className="consent-option flex cursor-pointer items-start gap-3 rounded-xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-sm dark:bg-white/10">
               <input type="checkbox" checked={captureAccepted} onChange={(event) => setCaptureAccepted(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-pink-500" />
@@ -116,11 +95,32 @@ export function ConsentScreen({ sessionEndsAt, onBack, onContinue }: ConsentScre
             </label>
           </div>
 
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-pink-200/80 bg-white/80 p-3.5 shadow-sm backdrop-blur-sm dark:border-pink-900/40 dark:bg-white/10">
+            <label className="flex cursor-pointer items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={allAccepted}
+                onChange={(e) => toggleAll(e.target.checked)}
+                className="h-5 w-5 rounded accent-pink-500 cursor-pointer"
+              />
+              <span className="text-xs font-black text-foreground">
+                Setujui Semua Persyaratan (Pilih Semua)
+              </span>
+            </label>
+            <button
+              type="button"
+              onClick={() => toggleAll(!allAccepted)}
+              className="rounded-lg bg-pink-500/10 px-3 py-1 text-xs font-black text-pink-600 transition-colors hover:bg-pink-500/20 dark:text-pink-300"
+            >
+              {allAccepted ? "Batal Centang Semua" : "Centang Semua ✨"}
+            </button>
+          </div>
+
           <button
             type="button"
             disabled={!canContinue}
             onClick={submit}
-            className="mt-5 w-full rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 px-5 py-3.5 font-black text-white shadow-lg shadow-pink-200/40 transition-transform enabled:hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-4 w-full rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 px-5 py-3.5 font-black text-white shadow-lg shadow-pink-200/40 transition-transform enabled:hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
           >
             Setuju dan Lanjut Pilih Frame
           </button>
