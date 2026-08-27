@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "motion/react";
 
 import { BACKGROUND_PRESETS, DEFAULT_UI_THEME, FILTERS, SAMPLE_PHOTOS, TEMPLATE_CATEGORIES, TEMPLATES } from "../data/photobooth";
 import type { BoothMonitor, BoothThemeSettings, FilterPreset, PhotoSession, TemplateCategory, TemplateOption, Voucher } from "../types/photobooth";
+import { CustomSelect } from "../components/shared/CustomSelect";
+import { CustomDateTimePicker } from "../components/shared/CustomDateTimePicker";
 
 type DashboardTab = "overview" | "theme" | "gallery" | "vouchers" | "filters" | "frames" | "monitoring";
 type FrameCategory = Exclude<TemplateCategory, "All">;
@@ -696,14 +698,15 @@ export function DashboardScreen({
                       </label>
                       <label className="space-y-1 text-sm font-black text-foreground">
                         Tipe diskon
-                        <select
+                        <CustomSelect
                           value={voucherDraft.discountType}
-                          onChange={(event) => setVoucherDraft((current) => ({ ...current, discountType: event.target.value as "fixed" | "percent" }))}
-                          className="w-full rounded-xl border border-white bg-white/85 px-4 py-3 text-sm outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
-                        >
-                          <option value="fixed">Nominal Rupiah</option>
-                          <option value="percent">Persentase</option>
-                        </select>
+                          onChange={(val) => setVoucherDraft((current) => ({ ...current, discountType: val as "fixed" | "percent" }))}
+                          options={[
+                            { value: "fixed", label: "Nominal Rupiah (Rp)", badge: "Rp" },
+                            { value: "percent", label: "Persentase (%)", badge: "%" },
+                          ]}
+                          className="mt-1"
+                        />
                       </label>
                       <label className="space-y-1 text-sm font-black text-foreground">
                         Nilai diskon
@@ -713,7 +716,7 @@ export function DashboardScreen({
                           max={voucherDraft.discountType === "percent" ? 100 : sessionPrice}
                           value={voucherDraft.discountValue}
                           onChange={(event) => setVoucherDraft((current) => ({ ...current, discountValue: Math.max(1, Number(event.target.value) || 1) }))}
-                          className="w-full rounded-xl border border-white bg-white/85 px-4 py-3 text-sm outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                          className="mt-1 w-full rounded-xl border border-white bg-white/85 px-4 py-2.5 text-sm font-bold outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
                         />
                       </label>
                       <label className="space-y-1 text-sm font-black text-foreground">
@@ -724,25 +727,25 @@ export function DashboardScreen({
                           value={voucherDraft.maxUses ?? ""}
                           onChange={(event) => setVoucherDraft((current) => ({ ...current, maxUses: event.target.value ? Math.max(1, Number(event.target.value)) : null }))}
                           placeholder="Tanpa batas"
-                          className="w-full rounded-xl border border-white bg-white/85 px-4 py-3 text-sm outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                          className="mt-1 w-full rounded-xl border border-white bg-white/85 px-4 py-2.5 text-sm font-bold outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
                         />
                       </label>
                       <label className="space-y-1 text-sm font-black text-foreground">
                         Mulai berlaku
-                        <input
-                          type="datetime-local"
+                        <CustomDateTimePicker
                           value={voucherDraft.startsAt}
-                          onChange={(event) => setVoucherDraft((current) => ({ ...current, startsAt: event.target.value }))}
-                          className="w-full rounded-xl border border-white bg-white/85 px-4 py-3 text-sm outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                          onChange={(val) => setVoucherDraft((current) => ({ ...current, startsAt: val || "" }))}
+                          placeholder="Mulai sekarang"
+                          className="mt-1"
                         />
                       </label>
                       <label className="space-y-1 text-sm font-black text-foreground">
                         Kedaluwarsa
-                        <input
-                          type="datetime-local"
+                        <CustomDateTimePicker
                           value={voucherDraft.expiresAt}
-                          onChange={(event) => setVoucherDraft((current) => ({ ...current, expiresAt: event.target.value }))}
-                          className="w-full rounded-xl border border-white bg-white/85 px-4 py-3 text-sm outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                          onChange={(val) => setVoucherDraft((current) => ({ ...current, expiresAt: val || "" }))}
+                          placeholder="Tanpa kedaluwarsa"
+                          className="mt-1"
                         />
                       </label>
                     </div>
@@ -1367,14 +1370,15 @@ export function DashboardScreen({
                 <div className="grid grid-cols-2 gap-3">
                   <label className="space-y-1 text-xs font-black text-foreground">
                     Tipe Diskon
-                    <select
+                    <CustomSelect
                       value={editVoucherModal.discountType}
-                      onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, discountType: e.target.value as "fixed" | "percent" } : null)}
-                      className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
-                    >
-                      <option value="fixed">Nominal (Rp)</option>
-                      <option value="percent">Persentase (%)</option>
-                    </select>
+                      onChange={(val) => setEditVoucherModal((curr) => curr ? { ...curr, discountType: val as "fixed" | "percent" } : null)}
+                      options={[
+                        { value: "fixed", label: "Nominal (Rp)", badge: "Rp" },
+                        { value: "percent", label: "Persentase (%)", badge: "%" },
+                      ]}
+                      className="mt-1"
+                    />
                   </label>
                   <label className="space-y-1 text-xs font-black text-foreground">
                     Nilai Diskon
@@ -1383,7 +1387,7 @@ export function DashboardScreen({
                       min={1}
                       value={editVoucherModal.discountValue}
                       onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, discountValue: Math.max(1, Number(e.target.value) || 1) } : null)}
-                      className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                      className="mt-1 w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs font-bold outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
                     />
                   </label>
                 </div>
@@ -1395,26 +1399,26 @@ export function DashboardScreen({
                     value={editVoucherModal.maxUses ?? ""}
                     onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, maxUses: e.target.value ? Math.max(1, Number(e.target.value)) : null } : null)}
                     placeholder="Tanpa batas"
-                    className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                    className="mt-1 w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs font-bold outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
                   />
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
                   <label className="space-y-1 text-xs font-black text-foreground">
                     Mulai Berlaku
-                    <input
-                      type="datetime-local"
+                    <CustomDateTimePicker
                       value={editVoucherModal.startsAt}
-                      onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, startsAt: e.target.value } : null)}
-                      className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                      onChange={(val) => setEditVoucherModal((curr) => curr ? { ...curr, startsAt: val } : null)}
+                      placeholder="Mulai sekarang"
+                      className="mt-1"
                     />
                   </label>
                   <label className="space-y-1 text-xs font-black text-foreground">
                     Kedaluwarsa
-                    <input
-                      type="datetime-local"
+                    <CustomDateTimePicker
                       value={editVoucherModal.expiresAt}
-                      onChange={(e) => setEditVoucherModal((curr) => curr ? { ...curr, expiresAt: e.target.value } : null)}
-                      className="w-full rounded-xl border border-white bg-white/85 px-3 py-2.5 text-xs outline-none focus:border-primary dark:border-white/10 dark:bg-white/10"
+                      onChange={(val) => setEditVoucherModal((curr) => curr ? { ...curr, expiresAt: val } : null)}
+                      placeholder="Tanpa kedaluwarsa"
+                      className="mt-1"
                     />
                   </label>
                 </div>
