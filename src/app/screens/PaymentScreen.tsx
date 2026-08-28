@@ -206,8 +206,8 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
                   <p className="text-xs text-white/70">{payment?.orderId ? "Order " + payment.orderId : "Menyiapkan order..."}</p>
                 </div>
               </div>
-              <h3 className="text-2xl font-black sm:text-3xl">Satu sesi, semua format.</h3>
-              <p className="mt-2 max-w-sm text-sm text-white/75">Nominal QR dibuat server dan setiap order memiliki identitas transaksi sendiri.</p>
+              {/*<h3 className="text-2xl font-black sm:text-3xl">Satu sesi, semua format.</h3>
+              <p className="mt-2 max-w-sm text-sm text-white/75">Nominal QR dibuat server dan setiap order memiliki identitas transaksi sendiri.</p>*/}
             </div>
             <div className="mt-6 space-y-2 rounded-xl bg-white/10 p-3 text-xs font-bold">
               <div className="flex justify-between"><span>Harga sesi</span><span>Rp{currentBaseAmount.toLocaleString("id-ID")}</span></div>
@@ -407,9 +407,8 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 text-center shadow-2xl"
             >
-              <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-lg ${
-                voucherModal.type === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400'
-              }`}>
+              <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-lg ${voucherModal.type === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400'
+                }`}>
                 {voucherModal.type === 'success' ? <Ticket size={32} /> : <XCircle size={32} />}
               </div>
 
@@ -440,9 +439,8 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
               <button
                 type="button"
                 onClick={() => setVoucherModal(null)}
-                className={`mt-5 w-full rounded-2xl py-3 text-xs font-black text-white shadow-lg transition-transform hover:scale-[1.02] ${
-                  voucherModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'
-                }`}
+                className={`mt-5 w-full rounded-2xl py-3 text-xs font-black text-white shadow-lg transition-transform hover:scale-[1.02] ${voucherModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'
+                  }`}
               >
                 {voucherModal.type === 'success' ? 'Gunakan Diskon' : 'Tutup'}
               </button>

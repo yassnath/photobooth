@@ -1,10 +1,11 @@
 import type { PhotoSession } from "../../app/types/photobooth";
 
 const DATABASE_NAME = "pixiebooth-local-backup";
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 const SESSION_STORE = "sessions";
 const RESULT_STORE = "results";
 const RECOVERY_STORE = "recovery";
+const QUEUE_STORE = "upload_queue";
 const LOCAL_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface StoredSession extends PhotoSession {
@@ -37,6 +38,9 @@ function openBackupDatabase() {
       }
       if (!database.objectStoreNames.contains(RECOVERY_STORE)) {
         database.createObjectStore(RECOVERY_STORE, { keyPath: "id" });
+      }
+      if (!database.objectStoreNames.contains(QUEUE_STORE)) {
+        database.createObjectStore(QUEUE_STORE, { keyPath: "id" });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -146,4 +150,78 @@ export async function clearKioskRecovery() {
   transaction.objectStore(RECOVERY_STORE).delete("active");
   await transactionDone(transaction);
   database.close();
+}
+
+// ─── Upload Retry Queue ───────────────────────────────────────────────────────
+
+interface QueuedUpload {
+  id: string;
+  session: PhotoSession;
+  queuedAt: number;
+  attempts: number;
+}
+
+/**
+ * Persist a session to the upload queue so it can be retried
+ * if the initial server upload fails (network outage, timeout, etc).
+ */
+export async function queueSessionUpload(session: PhotoSession): Promise<void> {
+  if (!("indexedDB" in window)) return;
+  const database = await openBackupDatabase();
+  const transaction = database.transaction(QUEUE_STORE, "readwrite");
+  const record: QueuedUpload = { id: session.id, session, queuedAt: Date.now(), attempts: 0 };
+  transaction.objectStore(QUEUE_STORE).put(record);
+  await transactionDone(transaction);
+  database.close();
+}
+
+/**
+ * Dequeue a successfully uploaded session so it is not retried.
+ */
+async function dequeueSessionUpload(id: string): Promise<void> {
+  if (!("indexedDB" in window)) return;
+  const database = await openBackupDatabase();
+  const transaction = database.transaction(QUEUE_STORE, "readwrite");
+  transaction.objectStore(QUEUE_STORE).delete(id);
+  await transactionDone(transaction);
+  database.close();
+}
+
+/**
+ * Attempt to upload all queued sessions to the server.
+ * Pass the same `savePhotoSession` function used elsewhere to keep
+ * this module free of circular imports.
+ */
+export async function flushUploadQueue(
+  uploadFn: (session: PhotoSession) => Promise<unknown>,
+): Promise<void> {
+  if (!("indexedDB" in window)) return;
+  const database = await openBackupDatabase();
+  const transaction = database.transaction(QUEUE_STORE, "readonly");
+  const request = transaction.objectStore(QUEUE_STORE).getAll();
+  const records = await new Promise<QueuedUpload[]>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result as QueuedUpload[]);
+    request.onerror = () => reject(request.error);
+  });
+  await transactionDone(transaction);
+  database.close();
+
+  for (const record of records) {
+    // Give up after 10 attempts or after 48 hours
+    if (record.attempts >= 10 || Date.now() - record.queuedAt > 48 * 60 * 60 * 1000) {
+      await dequeueSessionUpload(record.id).catch(() => undefined);
+      continue;
+    }
+    try {
+      await uploadFn(record.session);
+      await dequeueSessionUpload(record.id);
+    } catch {
+      // Increment attempts
+      const db2 = await openBackupDatabase();
+      const tx2 = db2.transaction(QUEUE_STORE, "readwrite");
+      tx2.objectStore(QUEUE_STORE).put({ ...record, attempts: record.attempts + 1 });
+      await transactionDone(tx2);
+      db2.close();
+    }
+  }
 }

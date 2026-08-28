@@ -2,6 +2,7 @@ import { GIFEncoder, applyPalette, quantize } from "gifenc";
 
 import { getCaptureCount, getFilterCss } from "../data/photobooth";
 import type { EditorState, FilterOption, FrameLayout, TemplateOption } from "../types/photobooth";
+import { SlotRect, defaultEqualSlots, detectGreenscreenSlotsFromCanvas, frameSlotRectToSlotRect } from "./greenscreenDetector";
 
 interface ResultExportOptions {
   photos: string[];
@@ -47,6 +48,47 @@ function createFilter(editor: EditorState, filters: FilterOption[]) {
   ].filter(Boolean).join(" ");
 }
 
+/**
+ * Processes an overlay frame image and converts greenscreen pixels (#00FF00 / chroma green)
+ * into transparent pixels so photos underneath are cleanly visible through the frame cutouts.
+ */
+function processChromaKey(overlayImage: HTMLImageElement, width: number, height: number): HTMLCanvasElement {
+  const offscreen = document.createElement("canvas");
+  offscreen.width = width;
+  offscreen.height = height;
+  const ctx = offscreen.getContext("2d");
+  if (!ctx) return offscreen;
+
+  ctx.drawImage(overlayImage, 0, 0, width, height);
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  // Greenscreen detection threshold (Dominant Green Channel)
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+
+    if (g > 65 && g > r * 1.15 && g > b * 1.15) {
+      data[i + 3] = 0; // Alpha = 0 (Transparent)
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return offscreen;
+}
+
+/** Ensure caption fonts are loaded before drawing on canvas to avoid fallback font rendering. */
+async function ensureFontsLoaded() {
+  if (typeof document === "undefined" || !document.fonts) return;
+  try {
+    await document.fonts.load("700 20px Nunito");
+    await document.fonts.load("700 18px Nunito");
+  } catch {
+    // Silently proceed — caption will use system font fallback
+  }
+}
+
 async function createPhotoCanvas(options: ResultExportOptions) {
   const { photos, frameLayout, template, editor, filters, brandName } = options;
   const shotCount = getCaptureCount(frameLayout);
@@ -62,12 +104,9 @@ async function createPhotoCanvas(options: ResultExportOptions) {
     height = 1200; // 5cm x 10cm (1:2 ratio)
   }
 
-  const padding = 24;
-  const gap = frameLayout === "1x4" ? 10 : 14;
-  const captionHeight = 56;
-  const photoWidth = width - padding * 2;
-  const availablePhotoHeight = height - padding * 2 - (shotCount - 1) * gap - captionHeight;
-  const photoHeight = Math.floor(availablePhotoHeight / shotCount);
+  const hasOverlay = Boolean(template?.overlayImage);
+  const hasCaption = Boolean(editor.caption.trim());
+  const captionHeight = hasCaption ? 56 : 0;
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -77,25 +116,53 @@ async function createPhotoCanvas(options: ResultExportOptions) {
 
   context.fillStyle = template?.color || "#FFFFFF";
   context.fillRect(0, 0, width, height);
-  context.strokeStyle = template?.accent || "#EC4899";
-  context.lineWidth = 10;
-  context.strokeRect(5, 5, width - 10, height - 10);
 
   const safePhotos = photos.length > 0 ? photos : [];
   const images = await Promise.all(Array.from({ length: shotCount }, (_, index) => loadImage(safePhotos[index] || safePhotos[index % safePhotos.length])));
-  context.filter = createFilter(editor, filters) || "none";
-  images.forEach((image, index) => drawCover(context, image, padding, padding + index * (photoHeight + gap), photoWidth, photoHeight));
-  context.filter = "none";
 
-  if (template?.overlayImage) {
+  if (hasOverlay && template?.overlayImage) {
     const overlay = await loadImage(template.overlayImage);
-    context.drawImage(overlay, 0, 0, width, height);
+    const slots = template?.slots && template.slots.length > 0
+      ? template.slots.map(frameSlotRectToSlotRect)
+      : detectGreenscreenSlotsFromCanvas(overlay, shotCount);
+
+    context.filter = createFilter(editor, filters) || "none";
+    images.forEach((image, index) => {
+      const slot = slots[index] || defaultEqualSlots(shotCount)[index];
+      const slotX = Math.round((slot.xPercent / 100) * width);
+      const slotY = Math.round((slot.yPercent / 100) * height);
+      const slotW = Math.round((slot.wPercent / 100) * width);
+      const slotH = Math.round((slot.hPercent / 100) * height);
+      drawCover(context, image, slotX, slotY, slotW, slotH);
+    });
+    context.filter = "none";
+
+    if (template.chromaKeyGreen !== false) {
+      const keyedOverlayCanvas = processChromaKey(overlay, width, height);
+      context.drawImage(keyedOverlayCanvas, 0, 0);
+    } else {
+      context.drawImage(overlay, 0, 0, width, height);
+    }
+  } else {
+    const padding = 24;
+    const gap = frameLayout === "1x4" ? 10 : 14;
+    const photoWidth = width - padding * 2;
+    const availablePhotoHeight = height - padding * 2 - (shotCount - 1) * gap - captionHeight;
+    const photoHeight = Math.floor(availablePhotoHeight / shotCount);
+
+    context.filter = createFilter(editor, filters) || "none";
+    images.forEach((image, index) => drawCover(context, image, padding, padding + index * (photoHeight + gap), photoWidth, photoHeight));
+    context.filter = "none";
   }
 
-  context.fillStyle = template?.accent || "#6B21A8";
-  context.textAlign = "center";
-  context.font = "700 20px Nunito, sans-serif";
-  context.fillText(editor.caption.trim() || `${brandName} memories`, width / 2, height - 22);
+  // Draw custom caption ONLY if user provided one (omit default brand text)
+  if (hasCaption) {
+    await ensureFontsLoaded();
+    context.fillStyle = template?.accent || "#6B21A8";
+    context.textAlign = "center";
+    context.font = "700 20px Nunito, sans-serif";
+    context.fillText(editor.caption.trim(), width / 2, height - 22);
+  }
   return canvas;
 }
 
@@ -124,10 +191,12 @@ function drawMotionFrame(
   context.filter = createFilter(options.editor, options.filters) || "none";
   drawCover(context, image, 18, 18, canvas.width - 36, canvas.height - 72, 1 + progress * 0.035);
   context.filter = "none";
-  context.fillStyle = options.template?.accent || "#6B21A8";
-  context.textAlign = "center";
-  context.font = "700 18px Nunito, sans-serif";
-  context.fillText(options.editor.caption.trim() || options.brandName, canvas.width / 2, canvas.height - 25);
+  if (options.editor.caption.trim()) {
+    context.fillStyle = options.template?.accent || "#6B21A8";
+    context.textAlign = "center";
+    context.font = "700 18px Nunito, sans-serif";
+    context.fillText(options.editor.caption.trim(), canvas.width / 2, canvas.height - 25);
+  }
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -151,23 +220,72 @@ export async function downloadPhotoResult(options: ResultExportOptions) {
   downloadBlob(blob, `pixiebooth-${Date.now()}.jpg`);
 }
 
+/**
+ * Encode GIF frames in a Web Worker to avoid blocking the main thread.
+ * Falls back to synchronous main-thread encoding if Worker fails to start.
+ */
+async function encodeGifInWorker(
+  frameData: Uint8ClampedArray[],
+  width: number,
+  height: number,
+  delay: number,
+): Promise<Uint8Array> {
+  try {
+    const worker = new Worker(
+      new URL("../workers/gifEncoder.worker.ts", import.meta.url),
+      { type: "module" },
+    );
+
+    return await new Promise<Uint8Array>((resolve, reject) => {
+      worker.onmessage = (event: MessageEvent<{ bytes?: Uint8Array; error?: string }>) => {
+        worker.terminate();
+        if (event.data.error) {
+          reject(new Error(event.data.error));
+        } else if (event.data.bytes) {
+          resolve(event.data.bytes);
+        } else {
+          reject(new Error("GIF worker mengembalikan hasil kosong."));
+        }
+      };
+      worker.onerror = (err) => {
+        worker.terminate();
+        reject(new Error(err.message || "GIF worker error."));
+      };
+
+      // Transfer buffers for zero-copy transfer to worker
+      const transferList = frameData.map((d) => d.buffer as ArrayBuffer);
+      worker.postMessage({ frames: frameData, width, height, delay }, transferList);
+    });
+  } catch {
+    // Fallback: encode on main thread if Worker fails to instantiate
+    const gif = GIFEncoder();
+    for (const rgba of frameData) {
+      const palette = quantize(rgba, 128);
+      const indexed = applyPalette(rgba, palette);
+      gif.writeFrame(indexed, width, height, { palette, delay, repeat: 0 });
+    }
+    gif.finish();
+    return Uint8Array.from(gif.bytes());
+  }
+}
+
 export async function createGifResultBlob(options: ResultExportOptions) {
   const { canvas, context, images } = await createMotionCanvas(options);
   if (images.length === 0) throw new Error("Belum ada foto untuk diekspor.");
-  const gif = GIFEncoder();
+
+  await ensureFontsLoaded();
+
   const frames = images.length > 1 ? images : Array.from({ length: 5 }, () => images[0]);
 
-  frames.forEach((image, index) => {
+  // Extract RGBA pixel data on main thread (canvas.getImageData must run here)
+  const frameData: Uint8ClampedArray[] = frames.map((image, index) => {
     drawMotionFrame(context, canvas, image, options, frames.length === 1 ? 0 : index / (frames.length - 1));
-    const rgba = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    const palette = quantize(rgba, 128);
-    const indexed = applyPalette(rgba, palette);
-    gif.writeFrame(indexed, canvas.width, canvas.height, { palette, delay: 420, repeat: 0 });
+    return context.getImageData(0, 0, canvas.width, canvas.height).data;
   });
 
-  gif.finish();
-  const bytes = Uint8Array.from(gif.bytes());
-  return new Blob([bytes.buffer], { type: "image/gif" });
+  // Offload heavy quantize + palette + encode to Web Worker
+  const bytes = await encodeGifInWorker(frameData, canvas.width, canvas.height, 420);
+  return new Blob([bytes.slice()], { type: "image/gif" });
 }
 
 export async function downloadGifResult(options: ResultExportOptions) {
@@ -181,6 +299,8 @@ export async function createLiveResultBlob(options: ResultExportOptions) {
   if (!canvas.captureStream || typeof MediaRecorder === "undefined") {
     return createGifResultBlob(options);
   }
+
+  await ensureFontsLoaded();
 
   const stream = canvas.captureStream(20);
   const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";

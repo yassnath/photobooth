@@ -47,6 +47,13 @@ export interface ModeOption {
   gradient: string;
 }
 
+export interface FrameSlotRect {
+  x: number; // Percentage 0 - 100
+  y: number; // Percentage 0 - 100
+  w: number; // Percentage 0 - 100
+  h: number; // Percentage 0 - 100
+}
+
 export interface TemplateOption {
   id: string;
   label: string;
@@ -55,6 +62,9 @@ export interface TemplateOption {
   accent: string;
   emoji: string;
   overlayImage?: string;
+  layout?: FrameLayout | "all";
+  chromaKeyGreen?: boolean;
+  slots?: FrameSlotRect[];
 }
 
 export interface FilterOption {

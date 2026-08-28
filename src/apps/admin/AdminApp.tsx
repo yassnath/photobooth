@@ -31,6 +31,7 @@ export function AdminApp() {
   const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const loadDashboard = useCallback(async () => {
     const [bootstrap, localSessions] = await Promise.all([
@@ -54,8 +55,12 @@ export function AdminApp() {
         const { admin } = await photoboothApi.getAdminSession();
         setAdminSession(admin);
         await loadDashboard();
-      } catch {
+        setLoadError("");
+      } catch (err) {
         setAdminSession(null);
+        if (err instanceof Error && err.message && !err.message.includes("401") && !err.message.includes("login")) {
+          setLoadError(err.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -72,7 +77,7 @@ export function AdminApp() {
   const updateTheme: Dispatch<SetStateAction<BoothThemeSettings>> = (action) => {
     setUiTheme((current) => {
       const next = typeof action === "function" ? action(current) : action;
-      void photoboothApi.updateConfig({ theme: next }).catch(console.error);
+      void photoboothApi.updateConfig({ theme: next }).catch((err) => console.warn("[Admin] theme update failed:", err));
       return next;
     });
   };
@@ -80,7 +85,7 @@ export function AdminApp() {
   const updateFilters: Dispatch<SetStateAction<FilterPreset[]>> = (action) => {
     setFilters((current) => {
       const next = typeof action === "function" ? action(current) : action;
-      void photoboothApi.updateConfig({ filters: next }).catch(console.error);
+      void photoboothApi.updateConfig({ filters: next }).catch((err) => console.warn("[Admin] filters update failed:", err));
       return next;
     });
   };
@@ -88,7 +93,7 @@ export function AdminApp() {
   const updateFrames: Dispatch<SetStateAction<TemplateOption[]>> = (action) => {
     setFrames((current) => {
       const next = typeof action === "function" ? action(current) : action;
-      void photoboothApi.updateConfig({ frames: next }).catch(console.error);
+      void photoboothApi.updateConfig({ frames: next }).catch((err) => console.warn("[Admin] frames update failed:", err));
       return next;
     });
   };
@@ -156,6 +161,21 @@ export function AdminApp() {
     return (
       <div className="booth-bg grid min-h-[100dvh] place-items-center" style={rootStyle}>
         <div className="flex items-center gap-3 text-sm font-black text-primary"><LoaderCircle className="animate-spin" size={20} /> Memuat dashboard...</div>
+      </div>
+    );
+  }
+
+  if (loadError && !adminSession) {
+    return (
+      <div className="booth-bg grid min-h-[100dvh] place-items-center px-6" style={rootStyle}>
+        <div className="max-w-sm rounded-3xl border border-white/60 bg-white/70 p-8 text-center shadow-2xl backdrop-blur-md">
+          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-2xl">⚠️</div>
+          <h2 className="mb-2 text-base font-black text-foreground">Koneksi Server Gagal</h2>
+          <p className="mb-5 text-sm text-muted-foreground">{loadError}</p>
+          <button type="button" onClick={() => window.location.reload()} className="w-full rounded-2xl bg-primary py-3 text-sm font-black text-primary-foreground shadow-md">
+            Coba Lagi
+          </button>
+        </div>
       </div>
     );
   }

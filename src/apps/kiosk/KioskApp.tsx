@@ -20,7 +20,7 @@ import { WelcomeScreen } from "../../app/screens/WelcomeScreen";
 import type { BoothThemeSettings, CaptureMode, ConsentSettings, EditorState, FilterPreset, FrameLayout, PaymentRecord, PhotoSession, ResultFormat, Screen, TemplateOption } from "../../app/types/photobooth";
 import { photoboothApi } from "../../shared/api/client";
 import { reportKioskState } from "../../shared/agent/client";
-import { cleanupLocalBackups, clearKioskRecovery, loadKioskRecovery, saveKioskRecovery, saveLocalSessionBackup } from "../../shared/storage/localPhotoBackup";
+import { cleanupLocalBackups, clearKioskRecovery, flushUploadQueue, loadKioskRecovery, queueSessionUpload, saveKioskRecovery, saveLocalSessionBackup } from "../../shared/storage/localPhotoBackup";
 
 interface KioskRecoverySnapshot {
   screen: Screen;
@@ -116,8 +116,17 @@ export function KioskApp() {
       editor: nextEditor,
     };
 
+    // Always save locally first (fast, resilient)
     await saveLocalSessionBackup(nextSession);
-    await photoboothApi.savePhotoSession(nextSession);
+
+    // Try uploading to server; on failure, queue for background retry
+    try {
+      await photoboothApi.savePhotoSession(nextSession);
+    } catch (uploadError) {
+      console.warn("Session upload failed — queued for retry:", uploadError);
+      await queueSessionUpload(nextSession).catch(() => undefined);
+    }
+
     setCurrentSessionId(sessionId);
     return sessionId;
   };
@@ -152,6 +161,8 @@ export function KioskApp() {
 
   useEffect(() => {
     void cleanupLocalBackups();
+    // Flush any sessions that failed to upload in previous runs
+    void flushUploadQueue((session) => photoboothApi.savePhotoSession(session)).catch(() => undefined);
     void photoboothApi.getConfig().then((runtime) => {
       if (runtime.theme) setUiTheme(runtime.theme);
       if (runtime.filters) setFilters(runtime.filters);

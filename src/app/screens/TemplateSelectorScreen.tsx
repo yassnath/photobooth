@@ -1,5 +1,5 @@
 import { ArrowLeft, Check } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 
 import { SessionTimer } from "../components/shared/SessionTimer";
@@ -24,6 +24,62 @@ function LayoutPreview({ shots, selected }: { shots: number; selected: boolean }
   );
 }
 
+function ChromaImage({ src, className, alt = "" }: { src: string; className?: string; alt?: string }) {
+  const [cleanedSrc, setCleanedSrc] = useState<string>(src);
+
+  useEffect(() => {
+    if (!src) {
+      setCleanedSrc("");
+      return;
+    }
+    let isMounted = true;
+    const img = document.createElement("img");
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (!isMounted) return;
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || 600;
+        canvas.height = img.naturalHeight || 1800;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setCleanedSrc(src);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        let greenFound = false;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          if (g > 65 && g > r * 1.15 && g > b * 1.15) {
+            data[i + 3] = 0; // Turn green pixels transparent
+            greenFound = true;
+          }
+        }
+        if (greenFound) {
+          ctx.putImageData(imageData, 0, 0);
+          setCleanedSrc(canvas.toDataURL("image/png"));
+        } else {
+          setCleanedSrc(src);
+        }
+      } catch {
+        setCleanedSrc(src);
+      }
+    };
+    img.onerror = () => setCleanedSrc(src);
+    img.src = src;
+
+    return () => {
+      isMounted = false;
+    };
+  }, [src]);
+
+  return <img src={cleanedSrc} alt={alt} className={className} />;
+}
+
 export function TemplateSelectorScreen({ sessionEndsAt, onBack, onSelect, templates = TEMPLATES }: TemplateSelectorScreenProps) {
   const [layout, setLayout] = useState<FrameLayout>("1x1");
   const [category, setCategory] = useState<TemplateCategory>("All");
@@ -34,8 +90,13 @@ export function TemplateSelectorScreen({ sessionEndsAt, onBack, onSelect, templa
     return TEMPLATE_CATEGORIES.filter((item) => dynamicCategories.has(item));
   }, [templates]);
   const filteredTemplates = useMemo(
-    () => (category === "All" ? templates : templates.filter((template) => template.category === category)),
-    [category, templates],
+    () =>
+      templates.filter((template) => {
+        const matchesCategory = category === "All" || template.category === category;
+        const matchesLayout = !template.layout || template.layout === "all" || template.layout === layout;
+        return matchesCategory && matchesLayout;
+      }),
+    [category, layout, templates],
   );
 
   return (
@@ -132,12 +193,12 @@ export function TemplateSelectorScreen({ sessionEndsAt, onBack, onSelect, templa
               >
                 <div className="absolute inset-[12%] flex flex-col gap-[3%]">
                   {Array.from({ length: FRAME_LAYOUTS.find((item) => item.id === layout)?.shots || 1 }, (_, slot) => (
-                    <span key={slot} className="min-h-0 flex-1 rounded-sm bg-white/70" />
+                    <span key={slot} className="min-h-0 flex-1 rounded-sm bg-white/80 shadow-xs" />
                   ))}
                 </div>
                 <span className="relative z-10 text-base">{template.emoji}</span>
-                {template.overlayImage && <img src={template.overlayImage} alt="" className="absolute inset-0 h-full w-full object-cover" />}
-                {selected === template.id && <span className="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-pink-400"><Check size={11} className="text-white" /></span>}
+                {template.overlayImage && <ChromaImage src={template.overlayImage} alt="" className="absolute inset-0 h-full w-full object-cover z-20 pointer-events-none" />}
+                {selected === template.id && <span className="absolute right-1.5 top-1.5 z-30 grid h-5 w-5 place-items-center rounded-full bg-pink-400"><Check size={11} className="text-white" /></span>}
               </div>
               <p className="w-full truncate text-center text-[11px] font-bold text-foreground/70">{template.label}</p>
             </motion.button>

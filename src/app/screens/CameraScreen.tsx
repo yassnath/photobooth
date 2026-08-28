@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, Camera, LayoutTemplate, RefreshCcw, SwitchCamera, Zap } from "lucide-react";
+import { AlertCircle, ArrowLeft, Camera, Clock, LayoutTemplate, RefreshCcw, RotateCcw, SwitchCamera, Trash2, Zap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -20,7 +20,9 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
   const totalShots = getCaptureCount(frameLayout);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [cameraState, setCameraState] = useState<"ready" | "countdown" | "flash">("ready");
+  const [timerDuration, setTimerDuration] = useState<3 | 5 | 10>(3);
   const [countdown, setCountdown] = useState(3);
+  const [autoSequence, setAutoSequence] = useState(true);
   const [flashOn, setFlashOn] = useState(false);
   const capturedRef = useRef<string[]>([]);
   const onCompleteRef = useRef(onComplete);
@@ -76,28 +78,57 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
 
         capturedRef.current = nextPhotos;
         setCapturedPhotos(nextPhotos);
+        setCameraState("ready");
 
         if (nextPhotos.length >= totalShots) {
-          onCompleteRef.current(nextPhotos);
+          // Finished all shots!
           return;
         }
 
-        setCountdown(3);
-        setCameraState("countdown");
+        if (autoSequence) {
+          setCountdown(timerDuration);
+          setCameraState("countdown");
+        }
       },
       flashOn ? 620 : 420,
     );
 
     return () => window.clearTimeout(timer);
-  }, [activeFacingMode, cameraState, captureFrame, facingMode, flashOn, status, totalShots]);
+  }, [activeFacingMode, autoSequence, cameraState, captureFrame, facingMode, flashOn, status, timerDuration, totalShots]);
 
   const startCapture = () => {
-    if (cameraState !== "ready") {
+    if (cameraState !== "ready" || capturedPhotos.length >= totalShots) {
       return;
     }
 
-    setCountdown(3);
+    setCountdown(timerDuration);
     setCameraState("countdown");
+  };
+
+  const cancelCapture = () => {
+    setCameraState("ready");
+    setCountdown(timerDuration);
+  };
+
+  const deleteLastPhoto = () => {
+    if (cameraState !== "ready" || capturedPhotos.length === 0) return;
+    const nextPhotos = capturedPhotos.slice(0, -1);
+    capturedRef.current = nextPhotos;
+    setCapturedPhotos(nextPhotos);
+  };
+
+  const retakeAllPhotos = () => {
+    setCameraState("ready");
+    setCountdown(timerDuration);
+    capturedRef.current = [];
+    setCapturedPhotos([]);
+  };
+
+  const deletePhotoAtIndex = (indexToDelete: number) => {
+    if (cameraState !== "ready") return;
+    const nextPhotos = capturedPhotos.filter((_, idx) => idx !== indexToDelete);
+    capturedRef.current = nextPhotos;
+    setCapturedPhotos(nextPhotos);
   };
 
   const previewIndex = capturedRef.current.length % SAMPLE_PHOTOS.length;
@@ -159,13 +190,12 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
           <div
             className="pointer-events-none absolute inset-0"
             style={{
-              border: `6px solid ${template.accent}50`,
               boxShadow: `inset 0 0 80px ${template.color}70`,
             }}
           />
         )}
 
-        <div className="camera-top-overlay absolute inset-x-0 top-0 flex flex-col gap-2 p-3 sm:p-4">
+        <div className="camera-top-overlay absolute inset-x-0 top-0 flex flex-col gap-2 p-3 sm:p-4 z-30">
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={onBack}
@@ -183,6 +213,22 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
             </div>
 
             <div className="flex shrink-0 gap-2">
+              <div className="flex items-center gap-1 rounded-full bg-black/40 p-1 backdrop-blur-sm">
+                <Clock size={14} className="ml-1.5 text-white/70" />
+                {[3, 5, 10].map((sec) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => setTimerDuration(sec as 3 | 5 | 10)}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-black transition-all ${
+                      timerDuration === sec ? "bg-pink-400 text-white shadow-xs" : "text-white/60 hover:text-white"
+                    }`}
+                  >
+                    {sec}s
+                  </button>
+                ))}
+              </div>
+
               <button
                 onClick={() => setFlashOn((value) => !value)}
                 className={`rounded-full p-2.5 backdrop-blur-sm transition-transform hover:scale-110 ${
@@ -230,17 +276,25 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
           </div>
         </div>
 
-        {showShotCounter && capturedPhotos.length > 0 && (
-          <div className="absolute inset-x-0 top-28 flex justify-center gap-2 px-4 sm:top-24">
+        {showShotCounter && (
+          <div className="absolute inset-x-0 top-28 flex justify-center gap-2 px-4 sm:top-24 z-20">
             {capturedPhotos.map((url, index) => (
               <motion.div
                 key={`${url}-${index}`}
-                className="h-16 w-12 overflow-hidden rounded-md border-2 border-white bg-pink-100 shadow-lg"
+                className="group relative h-16 w-12 overflow-hidden rounded-md border-2 border-white bg-pink-100 shadow-lg"
                 initial={{ scale: 0, y: -18, opacity: 0 }}
                 animate={{ scale: 1, y: 0, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 180, damping: 16 }}
               >
                 <img src={url} alt={`Shot ${index + 1}`} className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => deletePhotoAtIndex(index)}
+                  className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100"
+                  aria-label={`Hapus foto ke-${index + 1}`}
+                >
+                  <Trash2 size={16} className="text-red-400" />
+                </button>
               </motion.div>
             ))}
             {Array.from({ length: totalShots - capturedPhotos.length }, (_, index) => (
@@ -252,7 +306,7 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
         <AnimatePresence>
           {cameraState === "countdown" && (
             <motion.div
-              className="absolute inset-0 flex items-center justify-center bg-black/25 backdrop-blur-[1px]"
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 backdrop-blur-[2px] z-40"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -287,57 +341,80 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
                   {countdown === 0 ? "✨" : countdown}
                 </span>
               </motion.div>
+
+              <motion.button
+                type="button"
+                onClick={cancelCapture}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-12 flex items-center gap-2 rounded-full border border-white/30 bg-black/60 px-5 py-2.5 text-xs font-black text-white backdrop-blur-md transition-all hover:bg-black/80 hover:scale-105 active:scale-95 shadow-lg"
+              >
+                <RotateCcw size={14} className="text-pink-400" /> Batal / Reset Timer
+              </motion.button>
             </motion.div>
           )}
 
           {cameraState === "flash" && (
-            <motion.div className="pointer-events-none absolute inset-0 bg-white" initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }} />
+            <motion.div className="pointer-events-none absolute inset-0 bg-white z-50" initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.45 }} />
           )}
         </AnimatePresence>
       </div>
 
       <div className="camera-control-panel shrink-0 border-t border-white/5 bg-gray-950 px-4 py-4 sm:px-5 sm:py-5">
-        <div className="camera-control-main mx-auto flex max-w-lg items-center justify-between">
-          <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full bg-white/10 text-white" aria-label={`Layout ${layoutLabel}`}>
-            <LayoutTemplate size={18} />
-            <span className="text-[9px] font-black">{layoutLabel}</span>
+        <div className="camera-control-main mx-auto flex max-w-lg items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {capturedPhotos.length > 0 && (
+              <button
+                type="button"
+                onClick={retakeAllPhotos}
+                disabled={cameraState !== "ready"}
+                className="flex h-11 items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 text-xs font-bold text-white transition-all hover:bg-white/20 disabled:opacity-40"
+                title="Foto Ulang Semua"
+              >
+                <RotateCcw size={15} /> Ulang
+              </button>
+            )}
           </div>
 
-          <motion.button
-            className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/80"
-            style={{ boxShadow: "0 0 24px rgba(244,114,182,0.35)" }}
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={startCapture}
-            disabled={cameraState !== "ready"}
-            aria-label="Take photo"
-          >
-            <motion.div
-              className={`h-14 w-14 rounded-full transition-all duration-200 ${cameraState === "ready" ? "bg-white" : "bg-pink-400"}`}
-              animate={cameraState === "countdown" ? { scale: [1, 0.88, 1] } : {}}
-              transition={{ duration: 0.5, repeat: Infinity }}
-            />
-          </motion.button>
+          {capturedPhotos.length >= totalShots ? (
+            <motion.button
+              type="button"
+              className="flex h-14 items-center justify-center rounded-2xl bg-gradient-to-r from-pink-500 to-violet-600 px-6 font-black text-white shadow-lg shadow-pink-500/30"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onCompleteRef.current(capturedPhotos)}
+            >
+              Lanjut ke Editor ✨
+            </motion.button>
+          ) : (
+            <motion.button
+              className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/80"
+              style={{ boxShadow: "0 0 24px rgba(244,114,182,0.35)" }}
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={startCapture}
+              disabled={cameraState !== "ready"}
+              aria-label="Take photo"
+            >
+              <motion.div
+                className={`h-14 w-14 rounded-full transition-all duration-200 ${cameraState === "ready" ? "bg-white" : "bg-pink-400"}`}
+                animate={cameraState === "countdown" ? { scale: [1, 0.88, 1] } : {}}
+                transition={{ duration: 0.5, repeat: Infinity }}
+              />
+            </motion.button>
+          )}
 
-          <div className="flex h-12 items-center justify-center gap-2">
-            {devices.length > 1 ? (
-              <select
-                value={selectedDeviceId || ""}
-                onChange={(e) => selectDevice(e.target.value)}
-                className="rounded-xl border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-white outline-none focus:border-pink-400"
-                aria-label="Pilih Perangkat Kamera"
+          <div className="flex items-center gap-2">
+            {capturedPhotos.length > 0 && (
+              <button
+                type="button"
+                onClick={deleteLastPhoto}
+                disabled={cameraState !== "ready"}
+                className="flex h-11 items-center gap-1.5 rounded-full border border-red-400/40 bg-red-500/20 px-3.5 text-xs font-bold text-red-200 transition-all hover:bg-red-500/30 disabled:opacity-40"
+                title="Hapus Foto Terakhir"
               >
-                {devices.map((dev, idx) => (
-                  <option key={dev.deviceId} value={dev.deviceId} className="bg-gray-900 text-white">
-                    {dev.label || `Kamera ${idx + 1}`}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <>
-                {!isCameraReady && status !== "requesting" && <AlertCircle size={18} className="text-yellow-300/80" aria-hidden="true" />}
-                {isCameraReady && <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]" aria-label="Kamera siap" />}
-              </>
+                <Trash2 size={15} /> Hapus
+              </button>
             )}
           </div>
         </div>
