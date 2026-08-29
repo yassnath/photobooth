@@ -65,154 +65,180 @@ export function EditorScreen({
 
   return (
     <motion.div
-      className="editor-screen bg-gray-950"
+      className="editor-screen bg-gray-950 flex h-[100dvh] flex-col overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.32 }}
     >
-      <div className="editor-header flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
-        <button onClick={onBack} className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20" aria-label="Back to camera">
-          <ArrowLeft size={19} />
+      {/* Header Bar */}
+      <div className="editor-header flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-3 bg-gray-950/80 backdrop-blur-md z-20">
+        <button onClick={onBack} className="flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-white/20" aria-label="Back to camera">
+          <ArrowLeft size={16} /> Kamera
         </button>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h3 className="text-sm font-black text-white sm:text-base" style={{ fontFamily: "Pacifico, cursive" }}>Pilih Filter</h3>
+        <div className="flex flex-col items-center gap-0.5 text-center">
+          <h3 className="text-base sm:text-lg font-black text-white" style={{ fontFamily: "Pacifico, cursive" }}>Pilih Filter & Hias Foto</h3>
           <SessionTimer endsAt={sessionEndsAt} compact />
         </div>
         <motion.button
-          className="rounded-full bg-gradient-to-r from-pink-400 to-violet-500 px-4 py-1.5 text-sm font-black text-white shadow-md"
+          className="rounded-full bg-gradient-to-r from-pink-400 to-violet-500 px-5 py-2 text-xs sm:text-sm font-black text-white shadow-lg shadow-pink-500/25"
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.94 }}
           onClick={() => onContinue({ filterId, stickers, caption, adjustments })}
         >
-          Done ✓
+          Selesai & Lanjut ✓
         </motion.button>
       </div>
 
-      <div className="editor-preview-pane flex min-h-0 flex-1 items-center justify-center overflow-hidden p-3 sm:p-4">
-        <PhotoFrame
-          photos={photos}
-          mode={mode}
-          frameLayout={frameLayout}
-          templateId={templateId}
-          editor={{ filterId, stickers, caption, adjustments }}
-          variant="editor"
-          fallbackPhoto={SAMPLE_PHOTOS[0]}
-          filters={filters}
-          frames={frames}
-          brandName={brandName}
-        />
-      </div>
-
-      <div className="editor-panel shrink-0 rounded-t-3xl border-t border-white/10 bg-gray-900">
-        <div className="grid grid-cols-4 border-b border-white/10">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setTab(item.id)}
-              className={`flex flex-col items-center gap-0.5 py-3 text-xs font-bold transition-colors ${
-                tab === item.id ? "border-b-2 border-pink-400 text-pink-400" : "text-white/40 hover:text-white/65"
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
+      {/* Main Content Area: Side-by-Side 2-Column Layout */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Left Side: 100% Full Size Photo Frame Preview */}
+        <div className="editor-preview-pane flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4 sm:p-6 bg-[radial-gradient(circle_at_center,rgba(244,114,182,0.12),transparent_70%)]">
+          <PhotoFrame
+            photos={photos}
+            mode={mode}
+            frameLayout={frameLayout}
+            templateId={templateId}
+            editor={{ filterId, stickers, caption, adjustments }}
+            variant="editor"
+            fallbackPhoto={SAMPLE_PHOTOS[0]}
+            filters={filters}
+            frames={frames}
+            brandName={brandName}
+          />
         </div>
 
-        <div className="editor-panel-content h-40 overflow-hidden p-3 sm:h-44">
-          {tab === "filters" && (
-            <div className="flex h-full items-center gap-3 overflow-x-auto scrollbar-hide">
-              {filters.map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => setFilterId(filter.id)}
-                  className={`flex shrink-0 flex-col items-center gap-1.5 transition-all ${filterId === filter.id ? "opacity-100" : "opacity-55 hover:opacity-80"}`}
-                >
-                  <div
-                    className={`h-14 w-14 overflow-hidden rounded-xl border-2 bg-pink-100 transition-all ${
-                      filterId === filter.id ? "scale-110 border-pink-400 shadow-md shadow-pink-400/30" : "border-white/15"
-                    }`}
-                  >
-                    <img src={previewPhoto} alt={filter.label} className="h-full w-full object-cover" style={{ filter: filter.css || undefined }} />
-                  </div>
-                  <span className="text-[10px] font-semibold text-white">{filter.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {tab === "stickers" && (
-            <div className="flex h-full flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white/45">{stickers.length} stickers</span>
-                <button
-                  onClick={removeLastSticker}
-                  disabled={stickers.length === 0}
-                  className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  <X size={13} /> Remove
-                </button>
-              </div>
-              <div className="grid grid-cols-10 gap-1.5 overflow-y-auto pt-1 scrollbar-hide min-[420px]:grid-cols-12">
-                {STICKERS.map((sticker) => (
-                  <button
-                    key={sticker}
-                    onClick={() => setStickers((current) => [...current, sticker])}
-                    className="rounded-lg p-0.5 text-center text-xl leading-none transition-transform hover:scale-125 hover:bg-white/10"
-                  >
-                    {sticker}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {tab === "text" && (
-            <div className="flex h-full flex-col justify-center gap-3">
-              <label className="text-xs font-bold text-white/50" htmlFor="caption-input">
-                Caption
-              </label>
-              <input
-                id="caption-input"
-                value={caption}
-                onChange={(event) => setCaption(event.target.value)}
-                maxLength={32}
-                placeholder="PixieBooth ♡"
-                className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/30 focus:border-pink-400"
-              />
-              <p className="text-right text-[11px] font-semibold text-white/35">{caption.length}/32</p>
-            </div>
-          )}
-
-          {tab === "adjust" && (
-            <div className="flex h-full flex-col justify-center gap-3">
-              {[
-                { label: "Brightness", key: "brightness" as const, value: adjustments.brightness },
-                { label: "Contrast", key: "contrast" as const, value: adjustments.contrast },
-                { label: "Saturation", key: "saturation" as const, value: adjustments.saturation },
-              ].map((item) => (
-                <div key={item.key} className="flex items-center gap-3">
-                  <span className="w-20 shrink-0 text-xs font-semibold text-white/50">{item.label}</span>
-                  <input
-                    type="range"
-                    min={50}
-                    max={150}
-                    value={item.value}
-                    onChange={(event) => updateAdjustment(item.key, Number(event.target.value))}
-                    className="h-1 flex-1 cursor-pointer accent-pink-400"
-                  />
-                  <span className="w-9 text-right text-xs text-white/35">{item.value}%</span>
-                </div>
-              ))}
+        {/* Right Side: Full-Height Sidebar Controls */}
+        <div className="editor-sidebar w-72 sm:w-80 lg:w-96 flex flex-col shrink-0 border-l border-white/10 bg-gray-900 overflow-hidden shadow-2xl z-10">
+          {/* Sidebar Tabs */}
+          <div className="grid grid-cols-4 border-b border-white/10 bg-gray-950/50 shrink-0">
+            {tabs.map((item) => (
               <button
-                onClick={resetAdjustments}
-                className="ml-auto flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-white/20"
+                key={item.id}
+                onClick={() => setTab(item.id)}
+                className={`flex flex-col items-center justify-center gap-1 py-3 text-xs font-black transition-all ${
+                  tab === item.id ? "border-b-2 border-pink-400 text-pink-400 bg-white/5" : "text-white/40 hover:text-white/70"
+                }`}
               >
-                <RotateCcw size={13} /> Reset
+                {item.icon}
+                <span>{item.label}</span>
               </button>
-            </div>
-          )}
+            ))}
+          </div>
+
+          {/* Sidebar Content Panel */}
+          <div className="editor-panel-content flex-1 overflow-y-auto p-4 scrollbar-hide">
+            {tab === "filters" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-white/50 uppercase tracking-wider">Efek Filter Warna</span>
+                  <span className="text-[11px] font-bold text-pink-400">{filters.length} Pilihan</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2.5 pt-1">
+                  {filters.map((filter) => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setFilterId(filter.id)}
+                      className={`flex flex-col items-center gap-1.5 transition-all p-1.5 rounded-xl border ${
+                        filterId === filter.id
+                          ? "border-pink-400 bg-pink-400/10 shadow-md shadow-pink-400/20"
+                          : "border-white/10 bg-white/5 hover:border-white/20"
+                      }`}
+                    >
+                      <div className="aspect-square w-full overflow-hidden rounded-lg bg-pink-100">
+                        <img src={previewPhoto} alt={filter.label} className="h-full w-full object-cover" style={{ filter: filter.css || undefined }} />
+                      </div>
+                      <span className={`text-[10.5px] font-bold truncate w-full text-center ${filterId === filter.id ? "text-pink-300 font-black" : "text-white/70"}`}>
+                        {filter.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === "stickers" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-white/50 uppercase tracking-wider">{stickers.length} Sticker Terpasang</span>
+                  <button
+                    onClick={removeLastSticker}
+                    disabled={stickers.length === 0}
+                    className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <X size={13} /> Hapus Sticker
+                  </button>
+                </div>
+                <div className="grid grid-cols-5 gap-2 pt-1">
+                  {STICKERS.map((sticker, idx) => (
+                    <button
+                      key={`${sticker}-${idx}`}
+                      onClick={() => setStickers((current) => [...current, sticker])}
+                      className="aspect-square flex items-center justify-center rounded-xl bg-white/5 text-2xl transition-all hover:scale-110 hover:bg-white/15 active:scale-95 border border-white/10"
+                    >
+                      {sticker}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === "text" && (
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="text-xs font-black text-white/50 uppercase tracking-wider block mb-2" htmlFor="caption-input">
+                    Teks / Caption Frame
+                  </label>
+                  <input
+                    id="caption-input"
+                    value={caption}
+                    onChange={(event) => setCaption(event.target.value)}
+                    maxLength={32}
+                    placeholder="PixieBooth ♡"
+                    className="w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 text-sm font-bold text-white outline-none placeholder:text-white/30 focus:border-pink-400"
+                  />
+                  <p className="mt-1 text-right text-[11px] font-semibold text-white/40">{caption.length}/32 Karakter</p>
+                </div>
+              </div>
+            )}
+
+            {tab === "adjust" && (
+              <div className="space-y-5 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-white/50 uppercase tracking-wider">Penyesuaian Visual</span>
+                  <button
+                    onClick={resetAdjustments}
+                    className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-white/20"
+                  >
+                    <RotateCcw size={12} /> Reset
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {[
+                    { label: "Brightness (Kecerahan)", key: "brightness" as const, value: adjustments.brightness },
+                    { label: "Contrast (Kontras)", key: "contrast" as const, value: adjustments.contrast },
+                    { label: "Saturation (Saturasi)", key: "saturation" as const, value: adjustments.saturation },
+                  ].map((item) => (
+                    <div key={item.key} className="space-y-1.5 rounded-xl bg-white/5 p-3 border border-white/10">
+                      <div className="flex items-center justify-between text-xs font-bold text-white/80">
+                        <span>{item.label}</span>
+                        <span className="text-pink-400 font-mono">{item.value}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={50}
+                        max={150}
+                        value={item.value}
+                        onChange={(event) => updateAdjustment(item.key, Number(event.target.value))}
+                        className="w-full h-1.5 cursor-pointer accent-pink-400 rounded-lg bg-white/20"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>

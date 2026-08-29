@@ -169,7 +169,7 @@ export function ResultScreen({
 
   return (
     <motion.div
-      className="relative min-h-[100dvh] overflow-x-hidden overflow-y-auto"
+      className="relative h-[100dvh] overflow-hidden"
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, y: -18 }}
@@ -179,18 +179,19 @@ export function ResultScreen({
       <FloatingParticles count={8} />
       {showConfetti && <Confetti />}
 
-      <main className="result-experience relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-6xl flex-col px-4 py-4 sm:px-6 sm:py-6">
-        <header className="mb-3 flex items-center justify-between gap-3 sm:mb-5">
+      <main className="result-experience relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl flex-col px-3 py-3 sm:px-5 sm:py-4">
+        <header className="mb-2 flex items-center justify-between gap-3 shrink-0">
           <div className="min-w-0">
-            <h2 className="text-xl font-black sm:text-2xl" style={{ fontFamily: "Pacifico, cursive" }}>{formatMeta[format].heading}</h2>
-            <p className="truncate text-xs text-muted-foreground">Unduh hasil atau pindai QR dari ponsel</p>
+            <h2 className="text-lg font-black sm:text-xl" style={{ fontFamily: "Pacifico, cursive" }}>{formatMeta[format].heading}</h2>
+            <p className="truncate text-[11px] text-muted-foreground">Unduh hasil atau pindai QR dari ponsel</p>
           </div>
           <SessionTimer endsAt={sessionEndsAt} />
         </header>
 
-        <div className="result-content-grid grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(19rem,0.75fr)] lg:gap-6">
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-gray-950 p-3 shadow-xl sm:p-4">
-            <div className="relative flex min-h-[18rem] flex-1 items-center justify-center overflow-auto rounded-xl bg-[radial-gradient(circle_at_center,rgba(244,114,182,0.22),transparent_58%)] p-3 sm:p-5">
+        <div className="result-content-grid flex flex-col lg:flex-row min-h-0 flex-1 gap-4 sm:gap-6 overflow-hidden">
+          {/* Left Side: Tight Photo Preview (Fits Strip Height & Aspect Ratio) */}
+          <section className="flex shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-gray-950 p-3 sm:p-4 shadow-2xl border border-white/10">
+            <div className="relative flex min-h-0 h-full items-center justify-center overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_center,rgba(244,114,182,0.2),transparent_65%)] p-2">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={format === "photo" ? format : `${format}-${activePhoto}`}
@@ -198,6 +199,7 @@ export function ResultScreen({
                   animate={format === "live" ? { opacity: 1, scale: [1, 1.025, 1] } : { opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.02 }}
                   transition={format === "live" ? { duration: 2.2, repeat: Infinity } : { duration: 0.24 }}
+                  className="flex h-full items-center justify-center"
                 >
                   <PhotoFrame
                     photos={previewPhotos}
@@ -214,70 +216,92 @@ export function ResultScreen({
                 </motion.div>
               </AnimatePresence>
               {format !== "photo" && (
-                <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-black tracking-wide text-white shadow-lg">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-500 px-3 py-1 text-xs font-black tracking-wide text-white shadow-lg">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
                   {format === "live" ? "LIVE" : "GIF"}
                 </div>
               )}
             </div>
           </section>
 
-          <aside className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto lg:pr-1">
-            <section className="flex items-center gap-4 rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-sm dark:bg-card/80 lg:flex-col">
+          {/* Right Side: Expanded QR Code & Action Panel */}
+          <aside className="flex flex-1 min-h-0 flex-col justify-between gap-3 overflow-y-auto p-4 sm:p-5 rounded-3xl border border-white/80 bg-white/75 shadow-2xl backdrop-blur-md dark:bg-card/85 scrollbar-hide">
+            {/* Prominent QR Code Download Card */}
+            <section className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-pink-200/80 bg-gradient-to-b from-white to-pink-50/50 p-4 sm:p-5 shadow-md text-center">
               {shareStatus === "ready" ? (
-                <a href={shareUrl} target="_blank" rel="noreferrer" aria-label="Buka halaman download" className="shrink-0 overflow-hidden rounded-lg border-2 border-white bg-white shadow-md">
-                  <ScannableQRCode value={shareUrl} size={132} label="QR unduhan hasil foto" />
+                <a href={shareUrl} target="_blank" rel="noreferrer" aria-label="Buka halaman download" className="shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-white shadow-xl transition-transform hover:scale-105">
+                  <ScannableQRCode value={shareUrl} size={180} label="QR unduhan hasil foto" />
                 </a>
               ) : (
-                <div className="grid h-[136px] w-[136px] shrink-0 place-items-center rounded-lg border-2 border-white bg-white shadow-md" aria-label="Menyiapkan QR unduhan">
-                  {shareStatus === "uploading" ? <LoaderCircle size={30} className="animate-spin text-primary" /> : <span className="px-3 text-center text-xs font-bold text-red-500">QR tidak tersedia</span>}
+                <div className="grid h-[180px] w-[180px] shrink-0 place-items-center rounded-2xl border-4 border-white bg-white shadow-xl">
+                  {shareStatus === "uploading" ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <LoaderCircle size={32} className="animate-spin text-pink-500" />
+                      <span className="text-xs font-bold text-pink-600">Menyiapkan QR...</span>
+                    </div>
+                  ) : (
+                    <span className="px-3 text-center text-xs font-bold text-red-500">QR tidak tersedia</span>
+                  )}
                 </div>
               )}
-              <div className="min-w-0 flex-1 text-left lg:text-center">
-                <p className="text-sm font-black">Scan untuk download</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {shareStatus === "uploading" ? "Menyiapkan tautan sesi..." : shareStatus === "ready" ? "Buka dan download dari ponsel." : "Download server belum terhubung."}
+              <div className="w-full text-center">
+                <p className="text-sm sm:text-base font-black text-foreground">Scan QR untuk Download Foto</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {shareStatus === "uploading" ? "Menyiapkan tautan sesi..." : shareStatus === "ready" ? "Buka kamera HP Anda & scan QR code di atas." : "Download server belum terhubung."}
                 </p>
-                <button type="button" onClick={copyLink} disabled={shareStatus !== "ready"} className="mt-2 inline-flex items-center gap-1.5 text-xs font-black text-primary disabled:cursor-not-allowed disabled:opacity-40">
-                  {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Tersalin" : "Salin link"}
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  disabled={shareStatus !== "ready"}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-pink-100 dark:bg-pink-950/40 px-3.5 py-1 text-xs font-black text-pink-600 dark:text-pink-300 transition-colors hover:bg-pink-200 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Link Tersalin!" : "Salin Link Download"}
                 </button>
               </div>
             </section>
 
-            <button
-              type="button"
-              onClick={download}
-              disabled={isDownloading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 px-5 py-3.5 font-black text-white shadow-lg shadow-pink-200/40 disabled:opacity-60"
-            >
-              {isDownloading ? <LoaderCircle size={18} className="animate-spin" /> : <Download size={18} />}
-              {isDownloading ? "Menyiapkan hasil..." : `Unduh ${formatMeta[format].extension}`}
-            </button>
-            {downloadError && <p className="rounded-lg bg-red-50 px-3 py-2 text-center text-xs font-bold text-red-600">{downloadError}</p>}
-
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { label: "Ulang", icon: <RotateCcw size={16} />, action: onRetake },
-                { label: "Filter", icon: <Wand2 size={16} />, action: onEdit },
-                { label: "Galeri", icon: <Images size={16} />, action: onGallery },
-                { label: "Cetak", icon: <Printer size={16} />, action: onPrint },
-              ].map((item) => (
-                <button
-                  type="button"
-                  key={item.label}
-                  onClick={item.action}
-                  className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-white/80 bg-white/65 px-1 py-2 text-[10px] font-black text-foreground/65 backdrop-blur-sm transition-colors hover:bg-white dark:bg-white/10"
-                >
-                  {item.icon}<span className="truncate">{item.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={share} className="flex items-center justify-center gap-2 rounded-xl border border-primary/25 bg-white/60 px-3 py-3 text-sm font-black text-primary dark:bg-white/10">
-                <Share2 size={16} /> Bagikan
+            {/* Action Buttons Section */}
+            <div className="space-y-2.5">
+              <button
+                type="button"
+                onClick={download}
+                disabled={isDownloading}
+                className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-pink-500 to-violet-600 px-5 py-3.5 text-base font-black text-white shadow-xl shadow-pink-300/40 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+              >
+                {isDownloading ? <LoaderCircle size={20} className="animate-spin" /> : <Download size={20} />}
+                {isDownloading ? "Menyiapkan File..." : `Unduh ${formatMeta[format].heading} (${formatMeta[format].extension})`}
               </button>
-              <button type="button" onClick={onFinish} className="rounded-xl bg-foreground px-3 py-3 text-sm font-black text-background">Selesai</button>
+              {downloadError && <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs font-bold text-red-600">{downloadError}</p>}
+
+              {/* 4 Extra Actions */}
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { label: "Ulang", icon: <RotateCcw size={18} />, action: onRetake },
+                  { label: "Filter", icon: <Wand2 size={18} />, action: onEdit },
+                  { label: "Galeri", icon: <Images size={18} />, action: onGallery },
+                  { label: "Cetak", icon: <Printer size={18} />, action: onPrint },
+                ].map((item) => (
+                  <button
+                    type="button"
+                    key={item.label}
+                    onClick={item.action}
+                    className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border border-white/90 bg-white/80 p-2 text-xs font-black text-foreground shadow-sm transition-all hover:bg-white hover:scale-105 active:scale-95 dark:bg-white/10"
+                  >
+                    {item.icon}
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Bottom Buttons */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button type="button" onClick={share} className="flex items-center justify-center gap-2 rounded-2xl border border-pink-300 bg-white/90 px-4 py-3 text-sm font-black text-pink-600 shadow-sm transition-all hover:bg-white dark:bg-white/10">
+                  <Share2 size={17} /> Bagikan
+                </button>
+                <button type="button" onClick={onFinish} className="rounded-2xl bg-foreground px-4 py-3 text-sm font-black text-background shadow-md transition-all hover:opacity-90">
+                  Selesai
+                </button>
+              </div>
             </div>
           </aside>
         </div>

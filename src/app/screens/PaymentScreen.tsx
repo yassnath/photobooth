@@ -63,15 +63,16 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
     if (!successPayment) return undefined;
     const timer = window.setTimeout(() => {
       handleProceed(successPayment);
-    }, 3000);
+    }, 5000);
     return () => window.clearTimeout(timer);
   }, [handleProceed, successPayment]);
 
   useEffect(() => {
-    if (voucherModal?.type !== "success") return undefined;
+    if (!voucherModal) return undefined;
+    const duration = voucherModal.type === "success" ? 5000 : 3000;
     const timer = window.setTimeout(() => {
       setVoucherModal(null);
-    }, 3000);
+    }, duration);
     return () => window.clearTimeout(timer);
   }, [voucherModal]);
 
@@ -114,7 +115,7 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
       }
     };
     const timer = window.setInterval(() => void checkStatus(), 2_000);
-    return () => window.clearInterval(timer);
+    return () => window.clearTimeout(timer);
   }, [complete, payment]);
 
   const verifyVoucher = async (event: FormEvent) => {
@@ -183,85 +184,90 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
 
       <main className="payment-shell relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col px-4 py-5 sm:px-6 sm:py-8">
         <header className="mb-5 flex items-center gap-3 sm:mb-7">
-          <button type="button" onClick={onBack} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/70 bg-white/70 shadow-sm backdrop-blur-sm transition-transform hover:scale-105 dark:bg-white/10" aria-label="Kembali ke pilihan format">
-            <ArrowLeft size={19} />
+          <button type="button" onClick={onBack} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/70 bg-white/70 shadow-md backdrop-blur-sm transition-transform hover:scale-105 dark:bg-white/10" aria-label="Kembali ke pilihan format">
+            <ArrowLeft size={20} />
           </button>
           <div className="min-w-0">
-            <h2 className="text-xl font-black sm:text-2xl" style={{ fontFamily: "Pacifico, cursive" }}>Pembayaran</h2>
-            <p className="truncate text-xs text-muted-foreground">Sesi dibuka otomatis setelah pembayaran terverifikasi</p>
+            <h2 className="text-2xl font-black sm:text-3xl" style={{ fontFamily: "Pacifico, cursive" }}>Pembayaran</h2>
+            <p className="truncate text-xs font-semibold text-muted-foreground">Sesi dibuka otomatis setelah pembayaran terverifikasi</p>
           </div>
           <div className="ml-auto text-right">
-            <p className="text-[10px] font-bold uppercase text-muted-foreground">Total</p>
-            <p className="text-base font-black text-primary sm:text-lg">Rp{currentAmount.toLocaleString("id-ID")}</p>
+            <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Total Bayar</p>
+            <p className="text-xl font-black text-primary sm:text-2xl">Rp{currentAmount.toLocaleString("id-ID")}</p>
           </div>
         </header>
 
-        <section className="payment-panel mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-hidden rounded-2xl border border-white/80 bg-white/70 shadow-xl backdrop-blur-md dark:bg-card/85 lg:grid lg:grid-cols-[minmax(18rem,0.9fr)_minmax(20rem,1.1fr)]">
-          <div className="flex flex-col justify-between bg-gradient-to-br from-pink-500 via-fuchsia-500 to-violet-600 p-5 text-white sm:p-7">
+        <section className="payment-panel mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/75 shadow-2xl backdrop-blur-md dark:bg-card/85 lg:grid lg:grid-cols-[14rem_1fr] sm:lg:grid-cols-[16rem_1fr]">
+          {/* Narrow Left Column */}
+          <div className="flex flex-col justify-between bg-gradient-to-br from-pink-500 via-fuchsia-500 to-violet-600 p-5 text-white sm:p-6">
             <div>
-              <div className="mb-5 flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 text-2xl">{uiTheme.logoEmoji}</div>
-                <div>
-                  <p className="font-black">{uiTheme.brandName}</p>
-                  <p className="text-xs text-white/70">{payment?.orderId ? "Order " + payment.orderId : "Menyiapkan order..."}</p>
+              <div className="mb-4 flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/20 text-2xl shadow-inner">{uiTheme.logoEmoji}</div>
+                <div className="min-w-0">
+                  <p className="text-lg font-black leading-tight">{uiTheme.brandName}</p>
+                  <p className="text-[11px] font-mono font-bold text-white/80 truncate">{payment?.orderId ? "Order " + payment.orderId : "Menyiapkan..."}</p>
                 </div>
               </div>
-              {/*<h3 className="text-2xl font-black sm:text-3xl">Satu sesi, semua format.</h3>
-              <p className="mt-2 max-w-sm text-sm text-white/75">Nominal QR dibuat server dan setiap order memiliki identitas transaksi sendiri.</p>*/}
             </div>
-            <div className="mt-6 space-y-2 rounded-xl bg-white/10 p-3 text-xs font-bold">
-              <div className="flex justify-between"><span>Harga sesi</span><span>Rp{currentBaseAmount.toLocaleString("id-ID")}</span></div>
-              {currentDiscount > 0 && <div className="flex justify-between text-emerald-200"><span>Voucher</span><span>-Rp{currentDiscount.toLocaleString("id-ID")}</span></div>}
-              <div className="flex justify-between border-t border-white/15 pt-2 text-sm font-black"><span>Total</span><span>Rp{currentAmount.toLocaleString("id-ID")}</span></div>
+
+            <div className="mt-4 space-y-2 rounded-2xl bg-black/20 p-4 text-xs font-bold backdrop-blur-sm border border-white/10">
+              <div className="flex justify-between text-white/80"><span>Harga Sesi</span><span>Rp{currentBaseAmount.toLocaleString("id-ID")}</span></div>
+              {currentDiscount > 0 && <div className="flex justify-between text-emerald-300 font-bold"><span>Voucher</span><span>-Rp{currentDiscount.toLocaleString("id-ID")}</span></div>}
+              <div className="flex justify-between border-t border-white/20 pt-2 text-base font-black text-white"><span>Total</span><span>Rp{currentAmount.toLocaleString("id-ID")}</span></div>
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-col p-4 sm:p-6">
-            <div className="mb-4 grid grid-cols-2 rounded-xl bg-muted p-1">
-              <button type="button" onClick={() => setMethod("qris")} className={"flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-black transition-colors " + (method === "qris" ? "bg-white text-primary shadow-sm dark:bg-white/15" : "text-muted-foreground")}>
-                <QrCode size={17} /> QRIS
+          {/* Expanded Right Column */}
+          <div className="flex min-h-0 flex-col p-5 sm:p-7 bg-white/50 dark:bg-card/50">
+            <div className="mb-5 grid grid-cols-2 rounded-2xl bg-gray-200/70 dark:bg-muted p-1.5 shadow-inner">
+              <button type="button" onClick={() => setMethod("qris")} className={"flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition-all " + (method === "qris" ? "bg-white text-pink-600 shadow-md dark:bg-white/20 dark:text-white scale-[1.01]" : "text-muted-foreground hover:text-foreground")}>
+                <QrCode size={18} /> Bayar QRIS
               </button>
-              <button type="button" onClick={() => setMethod("voucher")} className={"flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-black transition-colors " + (method === "voucher" ? "bg-white text-primary shadow-sm dark:bg-white/15" : "text-muted-foreground")}>
-                <Ticket size={17} /> Voucher
+              <button type="button" onClick={() => setMethod("voucher")} className={"flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition-all " + (method === "voucher" ? "bg-white text-pink-600 shadow-md dark:bg-white/20 dark:text-white scale-[1.01]" : "text-muted-foreground hover:text-foreground")}>
+                <Ticket size={18} /> Gunakan Voucher
               </button>
             </div>
 
             {error && (
-              <div role="alert" className="mb-3 flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-bold text-red-700">
-                <XCircle size={17} className="shrink-0" /> <span className="min-w-0 flex-1">{error}</span>
-                {method === "qris" && <button type="button" onClick={() => void createPayment()} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white" aria-label="Buat ulang pembayaran"><RefreshCcw size={14} /></button>}
+              <div role="alert" className="mb-4 flex items-center gap-2 rounded-2xl bg-rose-50 border border-rose-200 px-4 py-3 text-xs sm:text-sm font-bold text-rose-700 shadow-sm">
+                <XCircle size={18} className="shrink-0 text-rose-500" /> <span className="min-w-0 flex-1">{error}</span>
+                {method === "qris" && <button type="button" onClick={() => void createPayment()} className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white shadow-sm hover:scale-105 transition-transform" aria-label="Buat ulang pembayaran"><RefreshCcw size={14} /></button>}
               </div>
             )}
 
             {method === "qris" ? (
-              <div className="flex flex-1 flex-col items-center justify-center text-center">
-                <div className="grid h-[198px] w-[198px] place-items-center overflow-hidden rounded-xl border-4 border-white bg-white shadow-lg">
+              <div className="flex flex-1 flex-col items-center justify-center text-center py-2">
+                {/* Enlarged QR Code Box (260px x 260px) */}
+                <div className="grid h-[260px] w-[260px] place-items-center overflow-hidden rounded-2xl border-4 border-white bg-white shadow-2xl ring-1 ring-black/5 transition-transform hover:scale-102">
                   {loading && !payment ? (
-                    <LoaderCircle size={36} className="animate-spin text-primary" />
+                    <LoaderCircle size={42} className="animate-spin text-pink-500" />
                   ) : payment?.qrString ? (
-                    <ScannableQRCode value={payment.qrString} size={190} label="QR pembayaran sesi" />
+                    <ScannableQRCode value={payment.qrString} size={250} label="QR pembayaran sesi" />
                   ) : payment?.qrImageUrl ? (
-                    <img src={payment.qrImageUrl} alt="QR pembayaran sesi" className="h-[190px] w-[190px] object-contain" />
+                    <img src={payment.qrImageUrl} alt="QR pembayaran sesi" className="h-[250px] w-[250px] object-contain" />
                   ) : (
-                    <QrCode size={54} className="text-muted-foreground/40" />
+                    <QrCode size={64} className="text-muted-foreground/30" />
                   )}
                 </div>
-                <p className="mt-4 text-sm font-black">{payment?.status === "paid" ? "Pembayaran berhasil" : "Menunggu pembayaran QRIS"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{payment?.provider === "mock" ? "Mode integrasi mock aktif." : "Status diperiksa otomatis dari server."}</p>
-                <div className="mt-4 flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-black text-amber-700">
-                  {payment?.status === "paid" ? <CheckCircle2 size={14} /> : <LoaderCircle size={14} className="animate-spin" />}
-                  {payment?.status === "paid" ? "Terverifikasi" : "Pending"}
+
+                <p className="mt-5 text-base sm:text-lg font-black text-foreground">{payment?.status === "paid" ? "Pembayaran Berhasil! 🎉" : "Menunggu Pembayaran QRIS"}</p>
+                <p className="mt-1 text-xs sm:text-sm font-semibold text-muted-foreground">{payment?.provider === "mock" ? "Pindai kode QR menggunakan m-Banking atau e-Wallet." : "Status transaksi diperiksa otomatis oleh sistem."}</p>
+
+                <div className="mt-4 flex items-center gap-2 rounded-full bg-amber-100/80 dark:bg-amber-950/50 border border-amber-200 px-4 py-1.5 text-xs font-black text-amber-700 dark:text-amber-300 shadow-sm">
+                  {payment?.status === "paid" ? <CheckCircle2 size={16} className="text-emerald-500" /> : <LoaderCircle size={16} className="animate-spin text-amber-600" />}
+                  {payment?.status === "paid" ? "Terverifikasi" : "Menunggu Verifikasi Pembayaran"}
                 </div>
+
                 {payment?.provider === "mock" && payment.status === "pending" && (
-                  <button type="button" onClick={() => void simulate()} disabled={loading} className="mt-4 w-full rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 px-5 py-3 font-black text-white shadow-lg disabled:opacity-50">
-                    Simulasikan Pembayaran
+                  <button type="button" onClick={() => void simulate()} disabled={loading} className="mt-5 w-full max-w-sm rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-600 px-6 py-3.5 text-sm sm:text-base font-black text-white shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50">
+                    Simulasikan Pembayaran Berhasil ✨
                   </button>
                 )}
               </div>
             ) : (
-              <form onSubmit={verifyVoucher} className="flex flex-1 flex-col justify-center">
-                <label htmlFor="voucher" className="text-sm font-black">Kode voucher</label>
-                <div className="mt-2 flex gap-2">
+              <form onSubmit={verifyVoucher} className="flex flex-1 flex-col justify-center max-w-md mx-auto w-full py-4">
+                <label htmlFor="voucher" className="text-sm font-black text-foreground mb-2 block">Masukkan Kode Voucher Promo</label>
+                <div className="flex gap-2">
                   <input
                     id="voucher"
                     value={voucherCode}
@@ -270,19 +276,19 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
                       setVoucherQuote(null);
                       setError("");
                     }}
-                    placeholder="Masukkan kode"
+                    placeholder="CONTOH: PROMOBOOTH"
                     autoComplete="off"
-                    className="min-w-0 flex-1 rounded-xl border border-border bg-white px-4 py-3 font-bold uppercase outline-none focus:border-primary dark:bg-white/10"
+                    className="min-w-0 flex-1 rounded-2xl border border-pink-200 bg-white px-4 py-3.5 text-sm font-bold uppercase outline-none focus:border-pink-500 shadow-inner dark:bg-white/10"
                   />
-                  <button type="submit" disabled={checkingVoucher || voucherCode.trim().length < 3} className="rounded-xl bg-foreground px-4 py-3 text-sm font-black text-background disabled:opacity-45">
-                    {checkingVoucher ? "..." : "Cek"}
+                  <button type="submit" disabled={checkingVoucher || voucherCode.trim().length < 3} className="rounded-2xl bg-pink-600 px-6 py-3.5 text-sm font-black text-white shadow-md hover:bg-pink-700 disabled:opacity-45 transition-colors">
+                    {checkingVoucher ? "..." : "Cek Voucher"}
                   </button>
                 </div>
 
                 {voucherQuote?.valid && (
-                  <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-3 text-sm font-bold text-emerald-700">
-                    <div className="flex items-center gap-2"><CheckCircle2 size={17} /> Voucher valid</div>
-                    <p className="mt-1 text-xs">Potongan Rp{voucherQuote.discountAmount.toLocaleString("id-ID")}; total Rp{voucherQuote.finalAmount.toLocaleString("id-ID")}.</p>
+                  <div className="mt-4 rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3.5 text-sm font-bold text-emerald-800 shadow-sm">
+                    <div className="flex items-center gap-2 text-emerald-700 font-black"><CheckCircle2 size={18} /> Voucher Berhasil Dipasang!</div>
+                    <p className="mt-1 text-xs text-emerald-600">Potongan diskon Rp{voucherQuote.discountAmount.toLocaleString("id-ID")}; Total bayar Rp{voucherQuote.finalAmount.toLocaleString("id-ID")}.</p>
                   </div>
                 )}
 
@@ -290,9 +296,9 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
                   type="button"
                   disabled={!voucherQuote?.valid || loading}
                   onClick={() => void createPayment(voucherCode.trim().toUpperCase())}
-                  className="mt-5 w-full rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 px-5 py-3.5 font-black text-white shadow-lg transition-transform enabled:hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="mt-6 w-full rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-violet-600 px-6 py-4 text-sm font-black text-white shadow-xl transition-all enabled:hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {voucherQuote?.finalAmount === 0 ? "Gunakan Voucher Gratis" : "Buat QRIS dengan Diskon"}
+                  {voucherQuote?.finalAmount === 0 ? "Gunakan Voucher Gratis ✨" : "Lanjut Pembayaran Diskon →"}
                 </button>
               </form>
             )}
@@ -300,13 +306,14 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
         </section>
       </main>
 
+      {/* Pop-up Pembayaran Berhasil (5 Detik Auto-Close / Manual Close) */}
       <AnimatePresence>
         {successPayment && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-md"
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0, y: 20 }}
@@ -315,6 +322,14 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
               transition={{ type: "spring", stiffness: 350, damping: 22 }}
               className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-7 text-center shadow-2xl"
             >
+              <button
+                onClick={() => handleProceed(successPayment)}
+                className="absolute right-4 top-4 rounded-full bg-black/5 p-2 text-foreground/60 hover:bg-black/10 transition-colors"
+                aria-label="Tutup"
+              >
+                <X size={18} />
+              </button>
+
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-500 shadow-xl dark:bg-emerald-950/70 dark:text-emerald-400">
                 <motion.div
                   initial={{ scale: 0 }}
@@ -353,7 +368,7 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Metode</span>
-                  <span className="uppercase">{successPayment.method}</span>
+                  <span className="uppercase font-black">{successPayment.method}</span>
                 </div>
                 <div className="flex justify-between border-t border-emerald-200/50 pt-2 text-sm font-black text-emerald-700 dark:text-emerald-300">
                   <span>Total Dibayar</span>
@@ -375,14 +390,15 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
                   Lanjutkan Sesi Foto →
                 </button>
                 <p className="text-[11px] font-semibold text-muted-foreground">
-                  Mengalihkan otomatis dalam 3 detik...
+                  Mengalihkan otomatis dalam 5 detik...
                 </p>
               </motion.div>
 
+              {/* Progress Bar 5 Detik */}
               <motion.div
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
-                transition={{ duration: 3.0, ease: "linear" }}
+                transition={{ duration: 5.0, ease: "linear" }}
                 className="absolute bottom-0 left-0 h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500"
               />
             </motion.div>
@@ -390,6 +406,7 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
         )}
       </AnimatePresence>
 
+      {/* Pop-up Voucher Modal (5 Detik untuk Success, 3 Detik untuk Error / Lainnya) */}
       <AnimatePresence>
         {voucherModal && (
           <motion.div
@@ -407,6 +424,14 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/80 bg-gradient-to-b from-white via-pink-50/90 to-purple-50/70 p-6 text-center shadow-2xl"
             >
+              <button
+                onClick={() => setVoucherModal(null)}
+                className="absolute right-4 top-4 rounded-full bg-black/5 p-1.5 text-foreground/60 hover:bg-black/10 shadow-sm transition-colors"
+                aria-label="Tutup"
+              >
+                <X size={16} />
+              </button>
+
               <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-3xl shadow-lg ${voucherModal.type === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/70 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400'
                 }`}>
                 {voucherModal.type === 'success' ? <Ticket size={32} /> : <XCircle size={32} />}
@@ -439,28 +464,19 @@ export function PaymentScreen({ uiTheme, amount = 25_000, onBack, onPaid }: Paym
               <button
                 type="button"
                 onClick={() => setVoucherModal(null)}
-                className={`mt-5 w-full rounded-2xl py-3 text-xs font-black text-white shadow-lg transition-transform hover:scale-[1.02] ${voucherModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'
+                className={`mt-5 w-full rounded-2xl py-3.5 text-xs sm:text-sm font-black text-white shadow-lg transition-transform hover:scale-[1.02] ${voucherModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gradient-to-r from-rose-500 to-red-600'
                   }`}
               >
-                {voucherModal.type === 'success' ? 'Gunakan Diskon' : 'Tutup'}
+                {voucherModal.type === 'success' ? 'Gunakan Diskon & Tutup' : 'Tutup'}
               </button>
 
-              {voucherModal.type === 'success' && (
-                <motion.div
-                  initial={{ width: "0%" }}
-                  animate={{ width: "100%" }}
-                  transition={{ duration: 3.0, ease: "linear" }}
-                  className="absolute bottom-0 left-0 h-1.5 bg-gradient-to-r from-emerald-400 to-teal-500"
-                />
-              )}
-
-              <button
-                onClick={() => setVoucherModal(null)}
-                className="absolute right-4 top-4 rounded-full bg-rose-100/90 p-1.5 text-rose-500 hover:bg-rose-200 hover:text-rose-700 shadow-sm transition-colors dark:bg-rose-950/60 dark:text-rose-400"
-                aria-label="Tutup"
-              >
-                <X size={16} />
-              </button>
+              {/* Progress Bar 5 Detik untuk Success, 3 Detik untuk Error */}
+              <motion.div
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ duration: voucherModal.type === "success" ? 5.0 : 3.0, ease: "linear" }}
+                className={`absolute bottom-0 left-0 h-1.5 ${voucherModal.type === "success" ? "bg-gradient-to-r from-emerald-400 to-teal-500" : "bg-gradient-to-r from-rose-400 to-red-500"}`}
+              />
             </motion.div>
           </motion.div>
         )}

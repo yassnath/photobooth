@@ -1638,7 +1638,7 @@ export function DashboardScreen({
                     </div>
                     {/* Real 100% Aspect Ratio & Full Height/Width Container */}
                     <div
-                      className={`relative flex items-center justify-center overflow-hidden rounded-3xl text-5xl shadow-2xl transition-all ${frameDraft.layout === "1x2"
+                      className={`relative flex items-center justify-center overflow-hidden rounded-none text-5xl shadow-2xl transition-all border border-black/10 ${frameDraft.layout === "1x2"
                           ? "w-48 aspect-[1/2]"
                           : frameDraft.layout === "1x3" || frameDraft.layout === "1x4"
                             ? "w-40 aspect-[1/3]"

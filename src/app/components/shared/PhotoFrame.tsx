@@ -3,7 +3,7 @@ import { FILTERS, TEMPLATES, getCaptureCount, getFilterCss } from "../../data/ph
 import type { CaptureMode, EditorState, FilterOption, FrameLayout, TemplateOption } from "../../types/photobooth";
 import { SlotRect, defaultEqualSlots, detectGreenscreenSlotsFromCanvas, frameSlotRectToSlotRect } from "../../utils/greenscreenDetector";
 
-type PhotoFrameVariant = "editor" | "result" | "print";
+type PhotoFrameVariant = "editor" | "result" | "print" | "selector";
 
 interface PhotoFrameProps {
   photos: string[];
@@ -19,7 +19,7 @@ interface PhotoFrameProps {
   brandName?: string;
 }
 
-function ChromaImage({ src, className, alt = "" }: { src: string; className?: string; alt?: string }) {
+export function ChromaImage({ src, className, alt = "" }: { src: string; className?: string; alt?: string }) {
   const [cleanedSrc, setCleanedSrc] = useState<string>(src);
 
   useEffect(() => {
@@ -137,21 +137,31 @@ export function PhotoFrame({
     };
   }, [template?.slots, template?.overlayImage, layoutCount]);
 
+  const targetLayout = frameLayout || template?.layout || "1x4";
+  const frameAspectClass =
+    targetLayout === "1x2"
+      ? "aspect-[1/2]"
+      : targetLayout === "1x1"
+      ? "aspect-[3/4]"
+      : "aspect-[1/3]";
+
   const singleWidth =
-    variant === "print"
-      ? "w-[min(46vw,10rem)] sm:w-40 lg:w-[min(24vw,18rem)]"
+    variant === "selector"
+      ? "max-h-[26vh] sm:max-h-[30vh] w-auto aspect-[3/4] rounded-none pointer-events-none shadow-md"
+      : variant === "print"
+      ? "w-[min(40vw,9rem)] sm:w-36 lg:w-[min(20vw,15rem)] max-h-[50vh] rounded-none"
       : variant === "editor"
-        ? "w-[min(68vw,18rem)] sm:w-[min(48vw,21rem)] lg:w-[min(34vw,26rem)]"
-        : "w-[min(72vw,17rem)] sm:w-[min(48vw,21rem)] lg:w-[min(34vw,24rem)]";
-  const stripWidth = variant === "print"
-    ? layoutCount >= 4
-      ? "w-[min(34vw,7rem)] sm:w-28 lg:w-36"
-      : "w-[min(42vw,9rem)] sm:w-32 lg:w-40"
-    : layoutCount >= 4
-      ? "w-[min(45vw,10rem)] sm:w-[min(30vw,11rem)] lg:w-[min(18vw,15rem)]"
-      : layoutCount === 3
-        ? "w-[min(52vw,12rem)] sm:w-[min(34vw,13rem)] lg:w-[min(21vw,17rem)]"
-        : "w-[min(60vw,15rem)] sm:w-[min(38vw,16rem)] lg:w-[min(24vw,19rem)]";
+        ? "h-[68vh] sm:h-[74vh] max-h-[76vh] w-auto aspect-[3/4] rounded-none shadow-2xl"
+        : "h-[68vh] sm:h-[74vh] max-h-[76vh] w-auto aspect-[3/4] rounded-none shadow-2xl";
+
+  const stripWidth =
+    variant === "selector"
+      ? `max-h-[26vh] sm:max-h-[30vh] w-auto ${frameAspectClass} rounded-none pointer-events-none shadow-md`
+      : variant === "print"
+      ? "w-[min(30vw,6.5rem)] sm:w-26 lg:w-32 max-h-[48vh] rounded-none"
+      : variant === "editor"
+        ? `h-[68vh] sm:h-[74vh] max-h-[76vh] w-auto ${frameAspectClass} rounded-none shadow-2xl`
+        : `h-[68vh] sm:h-[74vh] max-h-[76vh] w-auto ${frameAspectClass} rounded-none shadow-2xl`;
 
   if (showStrip) {
     const hasCustomCaption = editor.caption.trim().length > 0;
@@ -159,10 +169,11 @@ export function PhotoFrame({
 
     return (
       <div
-        className={`photo-frame relative flex flex-col overflow-hidden bg-white shadow-2xl ${stripWidth}`}
+        className={`photo-frame relative flex flex-col overflow-hidden shadow-2xl transition-all ${stripWidth}`}
+        style={{ backgroundColor: template?.color || "#FFFFFF" }}
         data-shots={layoutCount}
       >
-        <div className={`relative flex flex-1 flex-col w-full overflow-hidden ${hasOverlay ? "aspect-[1/3]" : ""}`}>
+        <div className={`relative flex flex-1 flex-col w-full h-full overflow-hidden ${frameAspectClass}`}>
           {hasOverlay ? (
             Array.from({ length: layoutCount }, (_, photoIndex) => safePhotos[photoIndex] || safePhotos[photoIndex % safePhotos.length]).map((url, photoIndex) => {
               const slot = detectedSlots[photoIndex] || defaultEqualSlots(layoutCount)[photoIndex];
@@ -233,7 +244,8 @@ export function PhotoFrame({
 
   return (
     <div
-      className={`photo-frame relative flex flex-col overflow-hidden bg-white shadow-2xl ${singleWidth}`}
+      className={`photo-frame relative flex flex-col overflow-hidden shadow-2xl transition-all ${singleWidth}`}
+      style={{ backgroundColor: template?.color || "#FFFFFF" }}
       data-shots="1"
     >
       <div className="relative aspect-[3/4] w-full overflow-hidden">

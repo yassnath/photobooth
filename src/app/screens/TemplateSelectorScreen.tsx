@@ -2,6 +2,7 @@ import { ArrowLeft, Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 
+import { ChromaImage } from "../components/shared/PhotoFrame";
 import { SessionTimer } from "../components/shared/SessionTimer";
 import { pageAnimate, pageIn, pageOut, pageTransition } from "../components/shared/animations";
 import { FRAME_LAYOUTS, TEMPLATE_CATEGORIES, TEMPLATES } from "../data/photobooth";
@@ -171,7 +172,7 @@ export function TemplateSelectorScreen({ sessionEndsAt, onBack, onSelect, templa
           ))}
         </div>
 
-        <div className="template-grid min-h-0 flex-1 overflow-y-auto pb-2 scrollbar-hide">
+        <div className="template-grid min-h-0 flex-1 flex flex-wrap items-start justify-center gap-4 sm:gap-6 overflow-y-auto p-2 pb-3 scrollbar-hide">
           {filteredTemplates.map((template, index) => (
             <motion.button
               type="button"
@@ -182,25 +183,54 @@ export function TemplateSelectorScreen({ sessionEndsAt, onBack, onSelect, templa
               transition={{ delay: Math.min(index * 0.025, 0.25) }}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              className={`relative flex min-w-0 flex-col items-center gap-1.5 rounded-xl border-2 p-2 transition-all ${selected === template.id ? "border-pink-400 bg-white shadow-md dark:bg-white/10" : "border-white/60 bg-white/55 hover:bg-white dark:bg-white/5"}`}
+              className={`relative flex shrink-0 flex-col items-center justify-between gap-2 transition-all p-1 sm:p-2 rounded-xl ${
+                selected === template.id ? "scale-102" : "opacity-85 hover:opacity-100"
+              }`}
               onClick={() => setSelected(template.id)}
             >
               <div
-                className={`relative flex w-full items-center justify-center overflow-hidden rounded-lg text-2xl ${
+                className={`relative flex items-center justify-center overflow-hidden rounded-none shadow-xl transition-all h-[32vh] sm:h-[36vh] max-h-[38vh] w-auto ${
+                  selected === template.id
+                    ? "ring-4 ring-pink-400 ring-offset-4 ring-offset-pink-50 shadow-pink-300/60"
+                    : "border border-black/10 hover:border-black/30"
+                } ${
                   layout === "1x1" ? "aspect-[3/4]" : layout === "1x2" ? "aspect-[1/2]" : "aspect-[1/3]"
                 }`}
-                style={{ backgroundColor: template.color, border: `2px solid ${template.accent}` }}
+                style={{ backgroundColor: template.color || "#FFFFFF" }}
               >
-                <div className="absolute inset-[12%] flex flex-col gap-[3%]">
-                  {Array.from({ length: FRAME_LAYOUTS.find((item) => item.id === layout)?.shots || 1 }, (_, slot) => (
-                    <span key={slot} className="min-h-0 flex-1 rounded-sm bg-white/80 shadow-xs" />
-                  ))}
-                </div>
-                <span className="relative z-10 text-base">{template.emoji}</span>
-                {template.overlayImage && <ChromaImage src={template.overlayImage} alt="" className="absolute inset-0 h-full w-full object-cover z-20 pointer-events-none" />}
-                {selected === template.id && <span className="absolute right-1.5 top-1.5 z-30 grid h-5 w-5 place-items-center rounded-full bg-pink-400"><Check size={11} className="text-white" /></span>}
+                {template.slots && template.slots.length > 0 ? (
+                  template.slots.map((slot, idx) => (
+                    <div
+                      key={idx}
+                      className="absolute bg-white/85 rounded-none shadow-xs z-10 pointer-events-none"
+                      style={{
+                        left: `${slot.x}%`,
+                        top: `${slot.y}%`,
+                        width: `${slot.w}%`,
+                        height: `${slot.h}%`,
+                      }}
+                    />
+                  ))
+                ) : (
+                  <div className="absolute inset-[10%] flex flex-col gap-[3%] z-10">
+                    {Array.from({ length: FRAME_LAYOUTS.find((item) => item.id === layout)?.shots || 1 }, (_, slot) => (
+                      <span key={slot} className="min-h-0 flex-1 rounded-none bg-white/85 shadow-xs" />
+                    ))}
+                  </div>
+                )}
+                <span className="relative z-10 text-xl sm:text-2xl font-black">{template.emoji}</span>
+                {template.overlayImage && (
+                  <ChromaImage src={template.overlayImage} alt="" className="absolute inset-0 h-full w-full object-fill z-20 pointer-events-none" />
+                )}
+                {selected === template.id && (
+                  <span className="absolute right-1.5 top-1.5 z-30 grid h-6 w-6 place-items-center rounded-full bg-pink-400 shadow-md">
+                    <Check size={13} className="text-white stroke-[3]" />
+                  </span>
+                )}
               </div>
-              <p className="w-full truncate text-center text-[11px] font-bold text-foreground/70">{template.label}</p>
+              <p className={`w-full max-w-[200px] truncate text-center text-xs sm:text-sm font-black transition-colors ${selected === template.id ? "text-pink-600" : "text-foreground/80"}`}>
+                {template.label}
+              </p>
             </motion.button>
           ))}
         </div>
