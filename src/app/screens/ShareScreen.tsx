@@ -30,7 +30,7 @@ export function ShareScreen({ onBack, onGoodbye }: ShareScreenProps) {
     }
 
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+    window.setTimeout(() => setCopied(false), 3000);
   };
 
   return (

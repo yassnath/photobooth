@@ -60,6 +60,23 @@ export default defineConfig(({ mode }) => {
       },
     },
 
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined
+            if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts'
+            if (id.includes('motion')) return 'vendor-motion'
+            if (id.includes('lucide-react')) return 'vendor-icons'
+            if (id.includes('@radix-ui')) return 'vendor-radix'
+            if (id.includes('@mui')) return 'vendor-mui'
+            if (id.includes('gifenc') || id.includes('qrcode')) return 'vendor-media'
+            return 'vendor'
+          },
+        },
+      },
+    },
+
     // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
     assetsInclude: ['**/*.svg', '**/*.csv'],
   }

@@ -153,7 +153,7 @@ export function ResultScreen({
       // Keep the visible feedback for browsers without clipboard permission.
     }
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    window.setTimeout(() => setCopied(false), 3000);
   };
 
   const share = async () => {

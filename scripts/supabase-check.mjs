@@ -21,6 +21,7 @@ const sessionId = `supabase-test-${suffix}`;
 let voucherId = null;
 let paymentId = null;
 let adminId = null;
+let createdAdminId = null;
 
 const testConfig = {
   ...baseConfig,
@@ -69,6 +70,15 @@ try {
   });
   assert(login.response.ok, "Login admin melalui Supabase gagal.");
   adminId = login.payload.admin.id;
+
+  const createdAdmin = await request("/api/admin/admins", {
+    method: "POST",
+    body: { username: `sbop${suffix.toLowerCase()}`.slice(0, 32), displayName: "Supabase Operator", password: "operator-password" },
+  });
+  assert(createdAdmin.response.status === 201, "Admin Supabase gagal dibuat.");
+  createdAdminId = createdAdmin.payload.admin.id;
+  const deactivateAdmin = await request(`/api/admin/admins/${encodeURIComponent(createdAdminId)}`, { method: "DELETE" });
+  assert(deactivateAdmin.response.status === 204, "Admin Supabase gagal dinonaktifkan.");
 
   const voucher = await request("/api/admin/vouchers", {
     method: "POST",
@@ -122,18 +132,19 @@ try {
   const bootstrap = await request("/api/admin/bootstrap");
   assert(bootstrap.response.ok, "Dashboard bootstrap Supabase gagal.");
   assert(bootstrap.payload.sessions.some((session) => session.id === sessionId), "Sesi Supabase tidak muncul di dashboard.");
+  assert(bootstrap.payload.orders.some((order) => order.id === paymentId && order.sessionId === sessionId), "Order Supabase tidak muncul di dashboard.");
   assert(bootstrap.payload.vouchers.some((item) => item.id === voucherId && item.usedCount === 1), "Kuota voucher Supabase tidak diperbarui.");
 
-  console.log("Supabase integration passed: PostgreSQL auth, voucher, payment, media metadata, and dashboard.");
+  console.log("Supabase integration passed: PostgreSQL auth, admin management, voucher, payment, media metadata, and dashboard.");
 } finally {
   await new Promise((resolveClose) => server.close(resolveClose));
   await application.database.transaction(async (database) => {
-    await database.run("DELETE FROM photo_sessions WHERE id = ?", sessionId);
+    await database.run("DELETE FROM sessions WHERE id = ?", sessionId);
     if (paymentId) {
-      await database.run("DELETE FROM voucher_redemptions WHERE payment_id = ?", paymentId);
-      await database.run("DELETE FROM payments WHERE id = ?", paymentId);
+      await database.run("DELETE FROM orders WHERE id = ?", paymentId);
     }
     if (voucherId) await database.run("DELETE FROM vouchers WHERE id = ?", voucherId);
+    if (createdAdminId) await database.run("DELETE FROM admins WHERE id = ?", createdAdminId);
     if (adminId) await database.run("DELETE FROM admin_sessions WHERE admin_id = ? AND created_at >= ?", adminId, startedAt);
   });
   await application.close();

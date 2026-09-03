@@ -13,6 +13,12 @@ function trimTrailingSlash(value) {
   return String(value || "").trim().replace(/\/+$/, "");
 }
 
+function booleanFromEnv(name, fallback) {
+  const value = process.env[name];
+  if (value === undefined || value === "") return fallback;
+  return !["0", "false", "no", "off"].includes(String(value).trim().toLowerCase());
+}
+
 export const config = {
   rootDir,
   dataDir,
@@ -21,6 +27,7 @@ export const config = {
   databaseDriver: (process.env.DATABASE_DRIVER || (process.env.DATABASE_URL ? "postgres" : "sqlite")).toLowerCase(),
   databaseUrl: process.env.DATABASE_URL || "",
   databaseSsl: process.env.DATABASE_SSL !== "false",
+  databaseMaxConnections: Math.max(1, numberFromEnv("DATABASE_MAX_CONNECTIONS", 3)),
   localObjectDir: resolve(process.env.LOCAL_OBJECT_DIR || join(dataDir, "objects")),
   port: numberFromEnv("API_PORT", numberFromEnv("PORT", 4174)),
   publicAppUrl: trimTrailingSlash(process.env.PUBLIC_APP_URL),
@@ -35,6 +42,7 @@ export const config = {
     acquirer: process.env.MIDTRANS_QRIS_ACQUIRER || "gopay",
   },
   storageDriver: (process.env.STORAGE_DRIVER || "local").toLowerCase(),
+  localStorageMirror: booleanFromEnv("LOCAL_STORAGE_MIRROR", false),
   s3: {
     endpoint: process.env.S3_ENDPOINT || "",
     region: process.env.S3_REGION || "ap-southeast-1",

@@ -89,6 +89,18 @@ graph TD
 
 ---
 
+## ⚙️ Current Production Notes
+
+- **Payment gateway** masih sengaja diset `PAYMENT_PROVIDER=mock` sampai credential dan flow Midtrans final dikunci.
+- **Printer** masih sengaja diset `PRINTER_MODE=spool`; set `PRINTER_NAME` dan ubah mode ke `windows` setelah printer fisik dipastikan.
+- **Storage hybrid** aktif dengan `STORAGE_DRIVER=supabase` dan `LOCAL_STORAGE_MIRROR=true`, jadi hasil tersimpan ke Supabase Storage sekaligus folder lokal booth.
+- **Camera auto-detect** memprioritaskan webcam USB/external, fallback ke kamera laptop, dan reconnect saat device kamera berubah.
+- **Schema Supabase** sudah diringkas ke tabel mudah dibaca: `admins`, `admin_sessions`, `settings`, `vouchers`, `orders`, `sessions`, `photos`, `booths`, dan `logs`.
+- **Dashboard Orders** menampilkan transaksi masuk sebagai tabel desktop dan card penuh di mobile agar semua kolom tetap terbaca.
+- **Supabase pooler** direkomendasikan memakai `DATABASE_MAX_CONNECTIONS=3` untuk mencegah limit session pooler cepat penuh di device booth kecil.
+
+---
+
 ## 👨‍💻 Developer & Portfolio Info
 
 Designed and built as a **Commercial-Grade, Fully Automated Photobooth Software Solution**. Perfect for franchise expansion, event rentals, pop-up installations, and unattended retail experiences.

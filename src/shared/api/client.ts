@@ -1,9 +1,13 @@
 import type {
   AdminSession,
+  AdminAccount,
+  AdminAuditLog,
   BoothMonitor,
+  BoothEvent,
   BoothRuntimeConfig,
   BoothThemeSettings,
   FilterPreset,
+  OrderRecord,
   PaymentRecord,
   PhotoSession,
   TemplateOption,
@@ -65,8 +69,29 @@ function handleStaticFallback<T>(path: string, init: RequestInit = {}): T | unde
       admin,
       config: { theme: null, filters: null, frames: null, sessionPrice: 25000 },
       sessions: SAMPLE_SESSIONS,
+      orders: SAMPLE_SESSIONS.filter((session) => session.payment).map((session) => ({
+        id: session.payment!.id,
+        orderId: session.payment!.orderId || session.payment!.id,
+        provider: session.payment!.provider || "mock",
+        method: session.payment!.method,
+        status: session.payment!.status || "paid",
+        baseAmount: session.payment!.baseAmount || session.payment!.amount,
+        discountAmount: session.payment!.discountAmount || 0,
+        amount: session.payment!.amount,
+        voucherCode: session.payment!.voucherCode,
+        sessionId: session.id,
+        resultFormat: session.resultFormat || "photo",
+        frameLayout: session.frameLayout || null,
+        createdAt: session.createdAt,
+        updatedAt: session.createdAt,
+        expiresAt: session.payment!.expiresAt || null,
+        paidAt: session.payment!.paidAt || null,
+      })),
       vouchers: SAMPLE_VOUCHERS,
       booths: SAMPLE_BOOTHS,
+      admins: [],
+      auditLogs: [],
+      boothEvents: [],
     } as T;
   }
 
@@ -212,8 +237,12 @@ export interface AdminBootstrap {
     sessionPrice: number;
   };
   sessions: PhotoSession[];
+  orders: OrderRecord[];
   vouchers: Voucher[];
   booths: BoothMonitor[];
+  admins: AdminAccount[];
+  auditLogs: AdminAuditLog[];
+  boothEvents: BoothEvent[];
 }
 
 export const photoboothApi = {
@@ -228,6 +257,14 @@ export const photoboothApi = {
   getAdminBootstrap: () => apiRequest<AdminBootstrap>("/api/admin/bootstrap"),
   updateConfig: (config: { theme?: BoothThemeSettings; filters?: FilterPreset[]; frames?: TemplateOption[] }) =>
     apiRequest<{ ok: true }>("/api/admin/config", { method: "PUT", body: JSON.stringify(config) }),
+  createAdmin: (admin: { username: string; displayName: string; password: string }) =>
+    apiRequest<{ admin: AdminAccount }>("/api/admin/admins", { method: "POST", body: JSON.stringify(admin) }),
+  updateAdmin: (id: string, patch: { displayName?: string; password?: string; active?: boolean }) =>
+    apiRequest<{ admin: AdminAccount }>(`/api/admin/admins/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  deactivateAdmin: (id: string) => apiRequest<void>(`/api/admin/admins/${encodeURIComponent(id)}`, { method: "DELETE" }),
   createVoucher: (voucher: {
     code: string;
     discountType: "fixed" | "percent";

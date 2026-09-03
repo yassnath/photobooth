@@ -27,10 +27,10 @@ export async function sendPrintJob(blob: Blob, copies: number, format: string) {
   });
 }
 
-export function reportKioskState(kioskScreen: string, activeSession: boolean) {
+export function reportKioskState(kioskScreen: string, activeSession: boolean, deviceStatus: Record<string, unknown> = {}) {
   return agentRequest<{ ok: true }>("/device-state", {
     method: "POST",
-    body: JSON.stringify({ kioskScreen, activeSession }),
+    body: JSON.stringify({ kioskScreen, activeSession, ...deviceStatus }),
   });
 }
 

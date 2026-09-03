@@ -3,13 +3,24 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { getPublicBaseUrl } from "./config.mjs";
-import { getSetting, openDatabase, setSetting } from "./lib/database.mjs";
+import {
+  getFilterPresetsConfig,
+  getFrameDesignsConfig,
+  getThemeConfig,
+  openDatabase,
+  replaceFilterPresetsConfig,
+  replaceFrameDesignsConfig,
+  setThemeConfig,
+  writeAdminAuditLog,
+  writeBoothEvent,
+} from "./lib/database.mjs";
 import {
   ADMIN_COOKIE_NAME,
   adminCookie,
   clearAdminCookie,
   createId,
   createToken,
+  hashPassword,
   hashToken,
   parseCookies,
   safeEqualText,
@@ -27,6 +38,7 @@ import { createObjectStorage } from "./services/storage.mjs";
 
 const resultIdPattern = /^[a-zA-Z0-9_-]{1,128}$/;
 const voucherCodePattern = /^[A-Z0-9_-]{3,32}$/;
+const usernamePattern = /^[a-z0-9_.-]{3,32}$/;
 const loginAttempts = new Map();
 
 function asyncRoute(handler) {
@@ -84,16 +96,37 @@ function paymentJson(row, request) {
   const baseUrl = getPublicBaseUrl(request);
   return {
     id: row.id,
-    orderId: row.order_id,
+    orderId: row.code || row.order_id,
     provider: row.provider,
     method: row.method,
     status: row.status,
     baseAmount: row.base_amount,
     discountAmount: row.discount_amount,
-    amount: row.amount,
+    amount: row.total_amount ?? row.amount,
     voucherCode: row.voucher_code || undefined,
     qrString: row.qr_string || undefined,
     qrImageUrl: row.qr_url ? `${baseUrl}/api/payments/${encodeURIComponent(row.id)}/qr` : undefined,
+    expiresAt: toIso(row.expires_at),
+    paidAt: toIso(row.paid_at),
+  };
+}
+
+function orderJson(row) {
+  return {
+    id: row.id,
+    orderId: row.code || row.order_id,
+    provider: row.provider,
+    method: row.method,
+    status: row.status,
+    baseAmount: row.base_amount,
+    discountAmount: row.discount_amount,
+    amount: row.total_amount ?? row.amount,
+    voucherCode: row.voucher_code || undefined,
+    sessionId: row.session_id || null,
+    resultFormat: row.result_format || null,
+    frameLayout: row.frame_layout || null,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
     expiresAt: toIso(row.expires_at),
     paidAt: toIso(row.paid_at),
   };
@@ -111,6 +144,18 @@ function voucherJson(row) {
     startsAt: toIso(row.starts_at),
     expiresAt: toIso(row.expires_at),
     createdAt: toIso(row.created_at),
+  };
+}
+
+function adminAccountJson(row, currentAdminId = null) {
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    active: Boolean(row.active),
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    isCurrent: row.id === currentAdminId,
   };
 }
 
@@ -134,9 +179,8 @@ async function getVoucherQuote(database, code, baseAmount, options = {}) {
   }
   const reserved = (await database.get(`
     SELECT CAST(COUNT(*) AS INTEGER) AS count
-    FROM voucher_redemptions vr
-    JOIN payments p ON p.id = vr.payment_id
-    WHERE vr.voucher_id = ? AND vr.status = 'reserved' AND p.expires_at > ?
+    FROM orders
+    WHERE voucher_id = ? AND status = 'pending' AND expires_at > ?
   `, voucher.id, now)).count;
   if (voucher.max_uses !== null && voucher.used_count + reserved >= voucher.max_uses) {
     return { valid: false, reason: "Kuota voucher sudah habis.", baseAmount, discountAmount: 0, finalAmount: baseAmount };
@@ -159,10 +203,11 @@ async function getVoucherQuote(database, code, baseAmount, options = {}) {
 
 async function getPaymentRow(database, idOrOrderId) {
   return database.get(`
-    SELECT p.*, v.code AS voucher_code
-    FROM payments p
-    LEFT JOIN vouchers v ON v.id = p.voucher_id
-    WHERE p.id = ? OR p.order_id = ?
+    SELECT o.*, v.code AS voucher_code, s.id AS session_id, s.result_format, s.frame_layout
+    FROM orders o
+    LEFT JOIN vouchers v ON v.id = o.voucher_id
+    LEFT JOIN sessions s ON s.order_id = o.id
+    WHERE o.id = ? OR o.code = ?
   `, idOrOrderId, idOrOrderId);
 }
 
@@ -170,30 +215,23 @@ async function updatePaymentStatus(database, payment, status, rawPayload) {
   const now = Date.now();
   await database.transaction(async (transaction) => {
     const paymentLock = transaction.driver === "postgres" ? " FOR UPDATE" : "";
-    const current = await transaction.get(`SELECT status, voucher_id FROM payments WHERE id = ?${paymentLock}`, payment.id);
+    const current = await transaction.get(`SELECT status, voucher_id FROM orders WHERE id = ?${paymentLock}`, payment.id);
     if (!current) return;
     if (current.status === "paid" && status !== "paid") return;
     if (current.status === status) {
-      await transaction.run("UPDATE payments SET raw_json = ?, updated_at = ? WHERE id = ?", JSON.stringify(rawPayload || {}), now, payment.id);
+      await transaction.run("UPDATE orders SET raw_json = ?, updated_at = ? WHERE id = ?", JSON.stringify(rawPayload || {}), now, payment.id);
       return;
     }
 
     await transaction.run(`
-      UPDATE payments
+      UPDATE orders
       SET status = ?, paid_at = CASE WHEN ? = 'paid' THEN COALESCE(paid_at, ?) ELSE paid_at END,
           raw_json = ?, updated_at = ?
       WHERE id = ?
     `, status, status, now, JSON.stringify(rawPayload || {}), now, payment.id);
 
-    if (!current.voucher_id) return;
-    const redemption = await transaction.get("SELECT id, status FROM voucher_redemptions WHERE payment_id = ?", payment.id);
-    if (!redemption) return;
-
-    if (status === "paid" && redemption.status !== "redeemed") {
-      await transaction.run("UPDATE voucher_redemptions SET status = 'redeemed', redeemed_at = ? WHERE id = ?", now, redemption.id);
+    if (current.voucher_id && status === "paid") {
       await transaction.run("UPDATE vouchers SET used_count = used_count + 1, updated_at = ? WHERE id = ?", now, current.voucher_id);
-    } else if ((status === "expired" || status === "failed") && redemption.status === "reserved") {
-      await transaction.run("UPDATE voucher_redemptions SET status = 'released' WHERE id = ?", redemption.id);
     }
   });
 }
@@ -227,8 +265,8 @@ function createAdminMiddleware(database) {
 }
 
 async function serializeSession(database, row) {
-  const assets = await database.all("SELECT id FROM media_assets WHERE session_id = ? AND kind = 'raw' ORDER BY created_at, id", row.id);
-  const payment = row.payment_id ? await getPaymentRow(database, row.payment_id) : null;
+  const assets = await database.all("SELECT id FROM photos WHERE session_id = ? AND kind = 'raw' ORDER BY created_at, id", row.id);
+  const payment = row.order_id ? await getPaymentRow(database, row.order_id) : null;
   return {
     id: row.id,
     createdAt: toIso(row.created_at),
@@ -237,10 +275,10 @@ async function serializeSession(database, row) {
     frameLayout: row.frame_layout || undefined,
     resultFormat: row.result_format || undefined,
     payment: payment
-      ? {
+        ? {
           id: payment.id,
           method: payment.method,
-          amount: payment.amount,
+          amount: payment.total_amount ?? payment.amount,
           baseAmount: payment.base_amount,
           discountAmount: payment.discount_amount,
           paidAt: toIso(payment.paid_at),
@@ -271,14 +309,21 @@ export async function createApplication(config) {
   app.use(express.json({ limit: "64mb" }));
 
   app.get("/api/health", (_request, response) => {
-    response.json({ ok: true, database: database.driver, storage: config.storageDriver, paymentProvider: config.paymentProvider, timestamp: new Date().toISOString() });
+    response.json({
+      ok: true,
+      database: database.driver,
+      storage: storage.label || config.storageDriver,
+      localStorageMirror: Boolean(config.localStorageMirror),
+      paymentProvider: config.paymentProvider,
+      timestamp: new Date().toISOString(),
+    });
   });
 
   app.get("/api/config", asyncRoute(async (_request, response) => {
     const [theme, filters, frames] = await Promise.all([
-      getSetting(database, "theme", null),
-      getSetting(database, "filters", null),
-      getSetting(database, "frames", null),
+      getThemeConfig(database, null),
+      getFilterPresetsConfig(database, null),
+      getFrameDesignsConfig(database, null),
     ]);
     response.json({
       theme,
@@ -382,17 +427,11 @@ export async function createApplication(config) {
         payment.amount = currentQuote.finalAmount;
         payment.voucherId = currentQuote.voucherRow?.id || null;
         await transaction.run(`
-          INSERT INTO payments (id, order_id, provider, method, status, base_amount, discount_amount, amount, voucher_id, created_at, updated_at, expires_at, paid_at)
+          INSERT INTO orders (id, code, provider, method, status, base_amount, discount_amount, total_amount, voucher_id, created_at, updated_at, expires_at, paid_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, payment.id, payment.orderId, payment.provider, payment.method, payment.status, payment.baseAmount, payment.discountAmount, payment.amount, payment.voucherId, now, now, payment.expiresAt, payment.status === "paid" ? now : null);
-        if (payment.voucherId) {
-          await transaction.run(`
-            INSERT INTO voucher_redemptions (id, voucher_id, payment_id, status, created_at, redeemed_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `, createId("redeem"), payment.voucherId, payment.id, payment.status === "paid" ? "redeemed" : "reserved", now, payment.status === "paid" ? now : null);
-          if (payment.status === "paid") {
-            await transaction.run("UPDATE vouchers SET used_count = used_count + 1, updated_at = ? WHERE id = ?", now, payment.voucherId);
-          }
+        if (payment.voucherId && payment.status === "paid") {
+          await transaction.run("UPDATE vouchers SET used_count = used_count + 1, updated_at = ? WHERE id = ?", now, payment.voucherId);
         }
       }, { immediate: true });
     } catch (error) {
@@ -411,7 +450,7 @@ export async function createApplication(config) {
     try {
       const providerResult = await createProviderPayment(config, payment, `${getPublicBaseUrl(request)}/api/webhooks/midtrans`);
       await database.run(`
-        UPDATE payments SET provider = ?, provider_transaction_id = ?, qr_string = ?, qr_url = ?, raw_json = ?, updated_at = ? WHERE id = ?
+        UPDATE orders SET provider = ?, provider_transaction_id = ?, qr_string = ?, qr_url = ?, raw_json = ?, updated_at = ? WHERE id = ?
       `, providerResult.provider, providerResult.transactionId, providerResult.qrString, providerResult.qrUrl, JSON.stringify(providerResult.raw), Date.now(), payment.id);
       response.status(201).json({ payment: paymentJson(await getPaymentRow(database, payment.id), request) });
     } catch (error) {
@@ -427,7 +466,7 @@ export async function createApplication(config) {
       return;
     }
     if (payment.status === "pending" && payment.provider === "midtrans" && Date.now() - payment.updated_at > 5000) {
-      const providerStatus = await fetchMidtransStatus(config, payment.order_id).catch(() => null);
+      const providerStatus = await fetchMidtransStatus(config, payment.code).catch(() => null);
       if (providerStatus) {
         await updatePaymentStatus(database, payment, normalizeMidtransStatus(providerStatus), providerStatus);
         payment = await getPaymentRow(database, request.params.id);
@@ -497,7 +536,7 @@ export async function createApplication(config) {
       return;
     }
     const paymentSession = payment
-      ? await database.get("SELECT id FROM photo_sessions WHERE payment_id = ? AND id <> ?", payment.id, sessionId)
+      ? await database.get("SELECT id FROM sessions WHERE order_id = ? AND id <> ?", payment.id, sessionId)
       : null;
     if (paymentSession) {
       response.status(409).json({ error: "Pembayaran ini sudah digunakan oleh sesi lain." });
@@ -508,10 +547,10 @@ export async function createApplication(config) {
     const expiresAt = now + config.rawPhotoRetentionHours * 60 * 60 * 1000;
     try {
       await database.run(`
-        INSERT INTO photo_sessions (id, mode, template_id, frame_layout, result_format, payment_id, consent_json, editor_json, created_at, expires_at)
+        INSERT INTO sessions (id, mode, template_id, frame_layout, result_format, order_id, consent_json, editor_json, created_at, expires_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET mode = excluded.mode, template_id = excluded.template_id, frame_layout = excluded.frame_layout,
-          result_format = excluded.result_format, payment_id = excluded.payment_id, consent_json = excluded.consent_json,
+          result_format = excluded.result_format, order_id = excluded.order_id, consent_json = excluded.consent_json,
           editor_json = excluded.editor_json, expires_at = excluded.expires_at
       `, sessionId, String(body.mode || "photo"), String(body.templateId || "han-river"), body.frameLayout || null, body.resultFormat || null, payment?.id || null, JSON.stringify(body.consent || null), JSON.stringify(body.editor || null), now, expiresAt);
     } catch (error) {
@@ -522,7 +561,7 @@ export async function createApplication(config) {
       throw error;
     }
 
-    const existingCount = (await database.get("SELECT CAST(COUNT(*) AS INTEGER) AS count FROM media_assets WHERE session_id = ? AND kind = 'raw'", sessionId)).count;
+    const existingCount = (await database.get("SELECT CAST(COUNT(*) AS INTEGER) AS count FROM photos WHERE session_id = ? AND kind = 'raw'", sessionId)).count;
     const photos = Array.isArray(body.photos) ? body.photos.slice(0, 4) : [];
     if (existingCount === 0) {
       for (let index = 0; index < photos.length; index += 1) {
@@ -532,7 +571,7 @@ export async function createApplication(config) {
         const objectKey = `sessions/${new Date(now).toISOString().slice(0, 10)}/${sessionId}/raw-${index + 1}.${parsed.extension}`;
         await storage.putObject(objectKey, parsed.body, parsed.mimeType);
         await database.run(`
-          INSERT INTO media_assets (id, session_id, kind, object_key, mime_type, extension, size_bytes, created_at, expires_at)
+          INSERT INTO photos (id, session_id, kind, object_key, mime_type, extension, size_bytes, created_at, expires_at)
           VALUES (?, ?, 'raw', ?, ?, ?, ?, ?, ?)
         `, assetId, sessionId, objectKey, parsed.mimeType, parsed.extension, parsed.body.length, now + index, expiresAt);
       }
@@ -547,7 +586,7 @@ export async function createApplication(config) {
       response.status(400).json({ error: "Payload hasil tidak valid." });
       return;
     }
-    const session = await database.get("SELECT * FROM photo_sessions WHERE id = ?", sessionId);
+    const session = await database.get("SELECT * FROM sessions WHERE id = ?", sessionId);
     if (!session) {
       response.status(404).json({ error: "Sesi foto belum tersimpan." });
       return;
@@ -562,14 +601,14 @@ export async function createApplication(config) {
     const objectKey = `results/${new Date(now).toISOString().slice(0, 10)}/${token}.${parsed.extension}`;
     await storage.putObject(objectKey, parsed.body, parsed.mimeType);
     await database.run(`
-      INSERT INTO media_assets (id, session_id, result_token, kind, format, object_key, mime_type, extension, size_bytes, created_at, expires_at)
+      INSERT INTO photos (id, session_id, result_token, kind, format, object_key, mime_type, extension, size_bytes, created_at, expires_at)
       VALUES (?, ?, ?, 'result', ?, ?, ?, ?, ?, ?, ?)
     `, assetId, sessionId, token, request.body?.format === "gif" || request.body?.format === "live" ? request.body.format : "photo", objectKey, parsed.mimeType, parsed.extension, parsed.body.length, now, expiresAt);
     response.status(201).json({ id: token, downloadUrl: `${getPublicBaseUrl(request)}/download/${encodeURIComponent(token)}`, expiresAt: toIso(expiresAt) });
   }));
 
   app.get("/api/results/:token/file", asyncRoute(async (request, response) => {
-    const asset = await database.get("SELECT * FROM media_assets WHERE result_token = ? AND kind = 'result' AND expires_at > ?", request.params.token, Date.now());
+    const asset = await database.get("SELECT * FROM photos WHERE result_token = ? AND kind = 'result' AND expires_at > ?", request.params.token, Date.now());
     if (!asset) {
       response.status(404).send("Hasil sesi tidak ditemukan atau sudah kedaluwarsa.");
       return;
@@ -585,13 +624,13 @@ export async function createApplication(config) {
 
   app.get("/download/:token", asyncRoute(async (request, response) => {
     const asset = await database.get(`
-      SELECT ma.* FROM media_assets ma WHERE ma.result_token = ? AND ma.kind = 'result' AND ma.expires_at > ?
+      SELECT ma.* FROM photos ma WHERE ma.result_token = ? AND ma.kind = 'result' AND ma.expires_at > ?
     `, request.params.token, Date.now());
     if (!asset) {
       response.status(404).send("<!doctype html><title>Hasil tidak ditemukan</title><p>Hasil sesi tidak ditemukan atau sudah kedaluwarsa.</p>");
       return;
     }
-    const theme = await getSetting(database, "theme", {});
+    const theme = await getThemeConfig(database, {});
     const brandName = escapeHtml(theme?.brandName || "PixieBooth");
     const token = encodeURIComponent(asset.result_token);
     const formatLabel = asset.format === "gif" ? "GIF" : asset.format === "live" ? "Live Photo" : "Foto";
@@ -620,19 +659,41 @@ main{width:min(100%,520px);text-align:center}img,video{display:block;width:min(1
     const now = Date.now();
     const status = typeof request.body?.status === "object" && request.body.status ? request.body.status : {};
     await database.run("UPDATE booths SET last_seen_at = ?, status_json = ?, version = ?, updated_at = ? WHERE id = ?", now, JSON.stringify(status), String(request.body?.version || "").slice(0, 80) || null, now, booth.id);
+    if (status?.printer?.available === false || status?.camera?.available === false) {
+      await writeBoothEvent(
+        database,
+        booth.id,
+        "warning",
+        status?.printer?.available === false ? "printer_unavailable" : "camera_unavailable",
+        status?.printer?.error || status?.camera?.error || "Device status reported unavailable.",
+        status,
+      ).catch(() => undefined);
+    }
     response.json({ ok: true, serverTime: new Date(now).toISOString() });
   }));
 
   app.get("/api/admin/bootstrap", requireAdmin, asyncRoute(async (request, response) => {
-    const [sessionRows, voucherRows, boothRows, theme, filters, frames] = await Promise.all([
-      database.all("SELECT * FROM photo_sessions ORDER BY created_at DESC LIMIT 500"),
+    const [sessionRows, orderRows, voucherRows, boothRows, adminRows, theme, filters, frames, auditRows, eventRows] = await Promise.all([
+      database.all("SELECT * FROM sessions ORDER BY created_at DESC LIMIT 500"),
+      database.all(`
+        SELECT o.*, v.code AS voucher_code, s.id AS session_id, s.result_format, s.frame_layout
+        FROM orders o
+        LEFT JOIN vouchers v ON v.id = o.voucher_id
+        LEFT JOIN sessions s ON s.order_id = o.id
+        ORDER BY o.created_at DESC
+        LIMIT 500
+      `),
       database.all("SELECT * FROM vouchers ORDER BY created_at DESC"),
       database.all("SELECT * FROM booths ORDER BY name"),
-      getSetting(database, "theme", null),
-      getSetting(database, "filters", null),
-      getSetting(database, "frames", null),
+      database.all("SELECT id, username, display_name, active, created_at, updated_at FROM admins ORDER BY created_at DESC"),
+      getThemeConfig(database, null),
+      getFilterPresetsConfig(database, null),
+      getFrameDesignsConfig(database, null),
+      database.all("SELECT * FROM logs WHERE source = 'admin' ORDER BY created_at DESC LIMIT 100").catch(() => []),
+      database.all("SELECT * FROM logs WHERE source = 'booth' ORDER BY created_at DESC LIMIT 100").catch(() => []),
     ]);
     const sessions = await Promise.all(sessionRows.map((row) => serializeSession(database, row)));
+    const orders = orderRows.map(orderJson);
     const vouchers = voucherRows.map(voucherJson);
     const booths = boothRows.map((booth) => ({
       id: booth.id,
@@ -651,18 +712,155 @@ main{width:min(100%,520px);text-align:center}img,video{display:block;width:min(1
         sessionPrice: config.sessionPrice,
       },
       sessions,
+      orders,
       vouchers,
       booths,
+      admins: adminRows.map((row) => adminAccountJson(row, request.admin.id)),
+      auditLogs: auditRows.map((row) => ({
+        id: row.id,
+        adminId: row.admin_id,
+        action: row.event_type,
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        metadata: parseJson(row.metadata_json, null),
+        createdAt: toIso(row.created_at),
+      })),
+      boothEvents: eventRows.map((row) => ({
+        id: row.id,
+        boothId: row.booth_id,
+        level: row.level,
+        eventType: row.event_type,
+        message: row.message,
+        metadata: parseJson(row.metadata_json, null),
+        createdAt: toIso(row.created_at),
+      })),
     });
   }));
 
   app.put("/api/admin/config", requireAdmin, asyncRoute(async (request, response) => {
     const updates = [];
-    if (request.body?.theme && typeof request.body.theme === "object") updates.push(setSetting(database, "theme", request.body.theme));
-    if (Array.isArray(request.body?.filters)) updates.push(setSetting(database, "filters", request.body.filters));
-    if (Array.isArray(request.body?.frames)) updates.push(setSetting(database, "frames", request.body.frames));
+    const changed = [];
+    if (request.body?.theme && typeof request.body.theme === "object") {
+      updates.push(setThemeConfig(database, request.body.theme));
+      changed.push("theme");
+    }
+    if (Array.isArray(request.body?.filters)) {
+      updates.push(replaceFilterPresetsConfig(database, request.body.filters));
+      changed.push("filters");
+    }
+    if (Array.isArray(request.body?.frames)) {
+      updates.push(replaceFrameDesignsConfig(database, request.body.frames));
+      changed.push("frames");
+    }
     await Promise.all(updates);
+    if (changed.length > 0) {
+      await writeAdminAuditLog(database, request.admin.id, "config.update", "config", changed.join(","), { changed }).catch(() => undefined);
+    }
     response.json({ ok: true });
+  }));
+
+  app.get("/api/admin/admins", requireAdmin, asyncRoute(async (request, response) => {
+    const rows = await database.all("SELECT id, username, display_name, active, created_at, updated_at FROM admins ORDER BY created_at DESC");
+    response.json({ admins: rows.map((row) => adminAccountJson(row, request.admin.id)) });
+  }));
+
+  app.post("/api/admin/admins", requireAdmin, asyncRoute(async (request, response) => {
+    const username = String(request.body?.username || "").trim().toLowerCase();
+    const displayName = String(request.body?.displayName || username).trim();
+    const password = String(request.body?.password || "");
+    if (!usernamePattern.test(username)) {
+      response.status(400).json({ error: "Username harus 3-32 karakter: huruf kecil, angka, titik, _ atau -." });
+      return;
+    }
+    if (password.length < 8) {
+      response.status(400).json({ error: "Password admin minimal 8 karakter." });
+      return;
+    }
+    if (displayName.length < 2) {
+      response.status(400).json({ error: "Nama tampilan minimal 2 karakter." });
+      return;
+    }
+
+    const now = Date.now();
+    const hashed = hashPassword(password);
+    const id = createId("admin");
+    try {
+      await database.run(`
+        INSERT INTO admins (id, username, display_name, password_hash, password_salt, active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      `, id, username, displayName.slice(0, 120), hashed.hash, hashed.salt, now, now);
+      await writeAdminAuditLog(database, request.admin.id, "admin.create", "admin", id, { username }).catch(() => undefined);
+      const admin = await database.get("SELECT id, username, display_name, active, created_at, updated_at FROM admins WHERE id = ?", id);
+      response.status(201).json({ admin: adminAccountJson(admin, request.admin.id) });
+    } catch (error) {
+      if (String(error.message).includes("UNIQUE") || error.code === "23505") {
+        response.status(409).json({ error: "Username admin sudah digunakan." });
+        return;
+      }
+      throw error;
+    }
+  }));
+
+  app.patch("/api/admin/admins/:id", requireAdmin, asyncRoute(async (request, response) => {
+    const target = await database.get("SELECT * FROM admins WHERE id = ?", request.params.id);
+    if (!target) {
+      response.status(404).json({ error: "Admin tidak ditemukan." });
+      return;
+    }
+
+    const nextActive = request.body?.active === undefined ? target.active : request.body.active ? 1 : 0;
+    if (target.id === request.admin.id && !nextActive) {
+      response.status(400).json({ error: "Admin aktif tidak dapat menonaktifkan akunnya sendiri." });
+      return;
+    }
+
+    const displayName = request.body?.displayName === undefined
+      ? target.display_name
+      : String(request.body.displayName || "").trim().slice(0, 120);
+    const password = request.body?.password === undefined ? "" : String(request.body.password || "");
+
+    if (displayName.length < 2) {
+      response.status(400).json({ error: "Nama tampilan minimal 2 karakter." });
+      return;
+    }
+    if (password && password.length < 8) {
+      response.status(400).json({ error: "Password admin minimal 8 karakter." });
+      return;
+    }
+
+    const now = Date.now();
+    if (password) {
+      const hashed = hashPassword(password);
+      await database.run(`
+        UPDATE admins
+        SET display_name = ?, password_hash = ?, password_salt = ?, active = ?, updated_at = ?
+        WHERE id = ?
+      `, displayName, hashed.hash, hashed.salt, nextActive, now, target.id);
+      await database.run("DELETE FROM admin_sessions WHERE admin_id = ?", target.id);
+    } else {
+      await database.run("UPDATE admins SET display_name = ?, active = ?, updated_at = ? WHERE id = ?", displayName, nextActive, now, target.id);
+      if (!nextActive) await database.run("DELETE FROM admin_sessions WHERE admin_id = ?", target.id);
+    }
+
+    await writeAdminAuditLog(database, request.admin.id, "admin.update", "admin", target.id, { username: target.username, active: Boolean(nextActive) }).catch(() => undefined);
+    const admin = await database.get("SELECT id, username, display_name, active, created_at, updated_at FROM admins WHERE id = ?", target.id);
+    response.json({ admin: adminAccountJson(admin, request.admin.id) });
+  }));
+
+  app.delete("/api/admin/admins/:id", requireAdmin, asyncRoute(async (request, response) => {
+    const target = await database.get("SELECT * FROM admins WHERE id = ?", request.params.id);
+    if (!target) {
+      response.status(404).json({ error: "Admin tidak ditemukan." });
+      return;
+    }
+    if (target.id === request.admin.id) {
+      response.status(400).json({ error: "Admin aktif tidak dapat menonaktifkan akunnya sendiri." });
+      return;
+    }
+    await database.run("UPDATE admins SET active = 0, updated_at = ? WHERE id = ?", Date.now(), target.id);
+    await database.run("DELETE FROM admin_sessions WHERE admin_id = ?", target.id);
+    await writeAdminAuditLog(database, request.admin.id, "admin.deactivate", "admin", target.id, { username: target.username }).catch(() => undefined);
+    response.status(204).end();
   }));
 
   app.post("/api/admin/vouchers", requireAdmin, asyncRoute(async (request, response) => {
@@ -689,6 +887,7 @@ main{width:min(100%,520px);text-align:center}img,video{display:block;width:min(1
         INSERT INTO vouchers (id, code, discount_type, discount_value, max_uses, starts_at, expires_at, active, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, id, code, discountType, discountValue, maxUses, fromDateInput(request.body?.startsAt), fromDateInput(request.body?.expiresAt), request.body?.active === false ? 0 : 1, now, now);
+      await writeAdminAuditLog(database, request.admin.id, "voucher.create", "voucher", id, { code, discountType, discountValue, maxUses }).catch(() => undefined);
       response.status(201).json({ voucher: voucherJson(await database.get("SELECT * FROM vouchers WHERE id = ?", id)) });
     } catch (error) {
       if (String(error.message).includes("UNIQUE") || error.code === "23505") {
@@ -731,27 +930,30 @@ main{width:min(100%,520px);text-align:center}img,video{display:block;width:min(1
       "UPDATE vouchers SET discount_type = ?, discount_value = ?, max_uses = ?, starts_at = ?, expires_at = ?, active = ?, updated_at = ? WHERE id = ?",
       discountType, discountValue, maxUses, startsAt, expiresAt, active, Date.now(), voucher.id
     );
+    await writeAdminAuditLog(database, request.admin.id, "voucher.update", "voucher", voucher.id, { code: voucher.code, active: Boolean(active) }).catch(() => undefined);
     response.json({ voucher: voucherJson(await database.get("SELECT * FROM vouchers WHERE id = ?", voucher.id)) });
   }));
 
   app.delete("/api/admin/vouchers/:id", requireAdmin, asyncRoute(async (request, response) => {
+    const now = Date.now();
     const result = await database.run(`
       DELETE FROM vouchers
       WHERE id = ? AND used_count = 0
         AND NOT EXISTS (
-          SELECT 1 FROM voucher_redemptions
-          WHERE voucher_redemptions.voucher_id = vouchers.id AND voucher_redemptions.status = 'reserved'
+          SELECT 1 FROM orders
+          WHERE orders.voucher_id = vouchers.id AND orders.status = 'pending' AND orders.expires_at > ?
         )
-    `, request.params.id);
+    `, request.params.id, now);
     if (result.changes === 0) {
       response.status(409).json({ error: "Voucher terpakai tidak dapat dihapus; nonaktifkan saja." });
       return;
     }
+    await writeAdminAuditLog(database, request.admin.id, "voucher.delete", "voucher", request.params.id).catch(() => undefined);
     response.status(204).end();
   }));
 
   app.get("/api/admin/assets/:id", requireAdmin, asyncRoute(async (request, response) => {
-    const asset = await database.get("SELECT * FROM media_assets WHERE id = ? AND expires_at > ?", request.params.id, Date.now());
+    const asset = await database.get("SELECT * FROM photos WHERE id = ? AND expires_at > ?", request.params.id, Date.now());
     if (!asset) {
       response.status(404).send("Asset tidak ditemukan.");
       return;
@@ -762,10 +964,11 @@ main{width:min(100%,520px);text-align:center}img,video{display:block;width:min(1
     response.send(file);
   }));
 
-  app.delete("/api/admin/sessions", requireAdmin, asyncRoute(async (_request, response) => {
-    const assets = await database.all("SELECT object_key FROM media_assets");
+  app.delete("/api/admin/sessions", requireAdmin, asyncRoute(async (request, response) => {
+    const assets = await database.all("SELECT object_key FROM photos");
     for (const asset of assets) await storage.deleteObject(asset.object_key).catch(() => undefined);
-    await database.run("DELETE FROM photo_sessions");
+    await database.run("DELETE FROM sessions");
+    await writeAdminAuditLog(database, request.admin.id, "sessions.clear", "sessions").catch(() => undefined);
     response.status(204).end();
   }));
 

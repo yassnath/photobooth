@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CameraDevice, CameraStatus, FacingMode } from "../types/photobooth";
 
+const CAMERA_DEVICE_STORAGE_KEY = "pixiebooth.preferred-camera-device";
+const externalCameraPattern = /\b(usb|external|webcam|logitech|brio|c9\d\d|obsbot|elgato|cam link|capture|sony|canon|nikon|fujifilm|droidcam|ivcam)\b/i;
+const integratedCameraPattern = /\b(integrated|built.?in|facetime|front|user facing|hd user facing)\b/i;
+const virtualCameraPattern = /\b(virtual|obs virtual|snap camera|xsplit|manycam)\b/i;
+
 interface StartCameraOptions {
   deviceId?: string;
   facingMode?: FacingMode;
@@ -18,6 +23,46 @@ function toCameraDevice(device: MediaDeviceInfo, index: number): CameraDevice {
     groupId: device.groupId,
     label: device.label || `Camera ${index + 1}`,
   };
+}
+
+function readStoredDeviceId() {
+  try {
+    return localStorage.getItem(CAMERA_DEVICE_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberDeviceId(deviceId: string) {
+  try {
+    if (deviceId) localStorage.setItem(CAMERA_DEVICE_STORAGE_KEY, deviceId);
+  } catch {
+    // Some kiosk policies and private modes disable localStorage writes.
+  }
+}
+
+function cameraScore(device: CameraDevice, preferredDeviceId: string, index: number) {
+  let score = 100 - index;
+  const label = device.label || "";
+
+  if (device.deviceId && device.deviceId === preferredDeviceId) score += 35;
+  if (externalCameraPattern.test(label)) score += 80;
+  if (integratedCameraPattern.test(label)) score += 20;
+  if (virtualCameraPattern.test(label)) score -= 120;
+  if (label) score += 5;
+
+  return score;
+}
+
+function choosePreferredCamera(devices: CameraDevice[], preferredDeviceId = "") {
+  const usableDevices = devices.filter((device) => Boolean(device.deviceId));
+  if (usableDevices.length === 0) return null;
+
+  return [...usableDevices].sort(
+    (left, right) =>
+      cameraScore(right, preferredDeviceId, devices.indexOf(right)) -
+      cameraScore(left, preferredDeviceId, devices.indexOf(left)),
+  )[0];
 }
 
 function cameraErrorMessage(error: unknown) {
@@ -42,6 +87,8 @@ export function useCameraStream() {
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const didAutoStartRef = useRef(false);
+  const isAutoSwitchingRef = useRef(false);
+  const manualDeviceSelectionRef = useRef(false);
   const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [facingMode, setFacingMode] = useState<FacingMode>("user");
@@ -84,6 +131,13 @@ export function useCameraStream() {
   const bindStream = useCallback(
     async (stream: MediaStream) => {
       streamRef.current = stream;
+      stream.getVideoTracks().forEach((track) => {
+        track.onended = () => {
+          setStatus("blocked");
+          setError("Camera disconnected. Reconnecting to the best available camera...");
+          void refreshDevices();
+        };
+      });
 
       if (videoElementRef.current) {
         videoElementRef.current.srcObject = stream;
@@ -101,6 +155,7 @@ export function useCameraStream() {
 
       if (deviceId) {
         setSelectedDeviceId(deviceId);
+        if (!manualDeviceSelectionRef.current) rememberDeviceId(deviceId);
       }
 
       setActiveFacingMode(trackFacingMode);
@@ -124,6 +179,10 @@ export function useCameraStream() {
       stopStream();
 
       const preferredFacingMode = options.facingMode ?? facingMode;
+      const knownDevices = await refreshDevices().catch(() => []);
+      const preferredDevice = options.deviceId
+        ? null
+        : choosePreferredCamera(knownDevices, readStoredDeviceId());
       const baseVideoConstraints: MediaTrackConstraints = {
         width: { ideal: 1280 },
         height: { ideal: 720 },
@@ -132,8 +191,8 @@ export function useCameraStream() {
 
       const preferredConstraints: MediaStreamConstraints = {
         audio: false,
-        video: options.deviceId
-          ? { ...baseVideoConstraints, deviceId: { exact: options.deviceId } }
+        video: (options.deviceId || preferredDevice?.deviceId)
+          ? { ...baseVideoConstraints, deviceId: { exact: options.deviceId || preferredDevice?.deviceId } }
           : { ...baseVideoConstraints, facingMode: { ideal: preferredFacingMode } },
       };
 
@@ -162,7 +221,9 @@ export function useCameraStream() {
 
   const selectDevice = useCallback(
     async (deviceId: string) => {
+      manualDeviceSelectionRef.current = true;
       setSelectedDeviceId(deviceId);
+      rememberDeviceId(deviceId);
       await startCamera({ deviceId });
     },
     [startCamera],
@@ -174,11 +235,13 @@ export function useCameraStream() {
     if (cameraDevices.length > 1 && selectedDeviceId) {
       const currentIndex = cameraDevices.findIndex((device) => device.deviceId === selectedDeviceId);
       const nextDevice = cameraDevices[(currentIndex + 1 + cameraDevices.length) % cameraDevices.length];
+      manualDeviceSelectionRef.current = true;
       await selectDevice(nextDevice.deviceId);
       return;
     }
 
     const nextFacingMode: FacingMode = facingMode === "user" ? "environment" : "user";
+    manualDeviceSelectionRef.current = true;
     setFacingMode(nextFacingMode);
     await startCamera({ facingMode: nextFacingMode });
   }, [devices, facingMode, refreshDevices, selectDevice, selectedDeviceId, startCamera]);
@@ -227,12 +290,43 @@ export function useCameraStream() {
   }, []);
 
   useEffect(() => {
+    if (manualDeviceSelectionRef.current || isAutoSwitchingRef.current || status === "requesting") {
+      return undefined;
+    }
+
+    const preferred = choosePreferredCamera(devices, readStoredDeviceId());
+    if (!preferred?.deviceId) {
+      return undefined;
+    }
+
+    const selectedStillAvailable = !selectedDeviceId || devices.some((device) => device.deviceId === selectedDeviceId);
+    const shouldSwitchToPreferred = preferred.deviceId !== selectedDeviceId && status === "ready";
+    const shouldReconnect = status === "idle" || status === "blocked" || !selectedStillAvailable;
+
+    if (!shouldSwitchToPreferred && !shouldReconnect) {
+      return undefined;
+    }
+
+    isAutoSwitchingRef.current = true;
+    void startCamera({ deviceId: preferred.deviceId }).finally(() => {
+      isAutoSwitchingRef.current = false;
+    });
+
+    return undefined;
+  }, [devices, selectedDeviceId, startCamera, status]);
+
+  useEffect(() => {
     if (!navigator.mediaDevices?.addEventListener) {
       return undefined;
     }
 
     const handleDeviceChange = () => {
-      void refreshDevices();
+      void refreshDevices().then((nextDevices) => {
+        if (selectedDeviceId && !nextDevices.some((device) => device.deviceId === selectedDeviceId)) {
+          manualDeviceSelectionRef.current = false;
+          setSelectedDeviceId("");
+        }
+      });
     };
 
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);

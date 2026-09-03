@@ -1,14 +1,15 @@
 import type { CSSProperties, Dispatch, SetStateAction } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 
-import { DEFAULT_UI_THEME, FILTERS, SAMPLE_BOOTHS, SAMPLE_SESSIONS, SAMPLE_VOUCHERS, TEMPLATES } from "../../app/data/photobooth";
+import { DEFAULT_UI_THEME, FILTERS, TEMPLATES } from "../../app/data/photobooth";
 import { useLocalStorageState } from "../../app/hooks/useLocalStorageState";
-import { DashboardScreen } from "../../app/screens/DashboardScreen";
 import { LoginScreen } from "../../app/screens/LoginScreen";
-import type { AdminSession, BoothMonitor, BoothThemeSettings, FilterPreset, PhotoSession, TemplateOption, Voucher } from "../../app/types/photobooth";
+import type { AdminAccount, AdminAuditLog, AdminSession, BoothEvent, BoothMonitor, BoothThemeSettings, FilterPreset, OrderRecord, PhotoSession, TemplateOption, Voucher } from "../../app/types/photobooth";
 import { photoboothApi } from "../../shared/api/client";
 import { listLocalSessionBackups } from "../../shared/storage/localPhotoBackup";
+
+const DashboardScreen = lazy(() => import("../../app/screens/DashboardScreen").then((module) => ({ default: module.DashboardScreen })));
 
 function mergeSessionBackups(serverSessions: PhotoSession[], localSessions: PhotoSession[]) {
   const localMap = new Map(localSessions.map((session) => [session.id, session]));
@@ -17,7 +18,7 @@ function mergeSessionBackups(serverSessions: PhotoSession[], localSessions: Phot
     localMap.delete(session.id);
     return session.photos.length > 0 || !backup ? session : { ...session, photos: backup.photos };
   });
-  return [...merged, ...localMap.values()].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  return merged.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
 export function AdminApp() {
@@ -25,8 +26,12 @@ export function AdminApp() {
   const [filters, setFilters] = useLocalStorageState<FilterPreset[]>("pixiebooth.filters", FILTERS);
   const [frames, setFrames] = useLocalStorageState<TemplateOption[]>("pixiebooth.frames", TEMPLATES);
   const [sessions, setSessions] = useState<PhotoSession[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [booths, setBooths] = useState<BoothMonitor[]>([]);
+  const [admins, setAdmins] = useState<AdminAccount[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
+  const [boothEvents, setBoothEvents] = useState<BoothEvent[]>([]);
   const [sessionPrice, setSessionPrice] = useState(25_000);
   const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
@@ -43,9 +48,13 @@ export function AdminApp() {
     setFilters(bootstrap.config.filters || FILTERS);
     setFrames(bootstrap.config.frames || TEMPLATES);
     const merged = mergeSessionBackups(bootstrap.sessions || [], localSessions || []);
-    setSessions(merged.length > 0 ? merged : SAMPLE_SESSIONS);
-    setVouchers(bootstrap.vouchers && bootstrap.vouchers.length > 0 ? bootstrap.vouchers : SAMPLE_VOUCHERS);
-    setBooths(bootstrap.booths && bootstrap.booths.length > 0 ? bootstrap.booths : SAMPLE_BOOTHS);
+    setSessions(merged);
+    setOrders(bootstrap.orders || []);
+    setVouchers(bootstrap.vouchers || []);
+    setBooths(bootstrap.booths || []);
+    setAdmins(bootstrap.admins || []);
+    setAuditLogs(bootstrap.auditLogs || []);
+    setBoothEvents(bootstrap.boothEvents || []);
     setSessionPrice(bootstrap.config.sessionPrice || 25_000);
   }, [setFilters, setFrames, setUiTheme]);
 
@@ -110,8 +119,12 @@ export function AdminApp() {
     setAdminSession(null);
     setShowLoginSuccess(false);
     setSessions([]);
+    setOrders([]);
     setVouchers([]);
     setBooths([]);
+    setAdmins([]);
+    setAuditLogs([]);
+    setBoothEvents([]);
   };
 
   const createVoucher = async (draft: Parameters<typeof photoboothApi.createVoucher>[0]) => {
@@ -143,6 +156,24 @@ export function AdminApp() {
   const clearSessions = async () => {
     await photoboothApi.clearSessions();
     setSessions(await listLocalSessionBackups().catch(() => []));
+  };
+
+  const createAdmin = async (draft: Parameters<typeof photoboothApi.createAdmin>[0]) => {
+    const res = await photoboothApi.createAdmin(draft);
+    if (res?.admin) setAdmins((current) => [res.admin, ...current.filter((item) => item.id !== res.admin.id)]);
+    await loadDashboard().catch(() => undefined);
+  };
+
+  const updateAdmin = async (id: string, patch: Parameters<typeof photoboothApi.updateAdmin>[1]) => {
+    const res = await photoboothApi.updateAdmin(id, patch);
+    if (res?.admin) setAdmins((current) => current.map((item) => (item.id === id ? res.admin : item)));
+    await loadDashboard().catch(() => undefined);
+  };
+
+  const deactivateAdmin = async (id: string) => {
+    await photoboothApi.deactivateAdmin(id);
+    setAdmins((current) => current.map((item) => (item.id === id ? { ...item, active: false } : item)));
+    await loadDashboard().catch(() => undefined);
   };
 
   const rootStyle = {
@@ -183,29 +214,38 @@ export function AdminApp() {
   return (
     <div style={rootStyle}>
       {adminSession ? (
-        <DashboardScreen
-          adminName={adminSession.displayName}
-          uiTheme={uiTheme}
-          filters={filters}
-          frames={frames}
-          sessions={sessions}
-          vouchers={vouchers}
-          booths={booths}
-          sessionPrice={sessionPrice}
-          showLoginSuccess={showLoginSuccess}
-          onCloseLoginSuccess={() => setShowLoginSuccess(false)}
-          onBack={() => window.location.assign("/")}
-          onLogout={() => void logout()}
-          onClearSessions={() => void clearSessions()}
-          onUpdateTheme={updateTheme}
-          onUpdateFilters={updateFilters}
-          onUpdateFrames={updateFrames}
-          onCreateVoucher={createVoucher}
-          onUpdateVoucher={updateVoucher}
-          onToggleVoucher={toggleVoucher}
-          onDeleteVoucher={deleteVoucher}
-          onRefresh={loadDashboard}
-        />
+        <Suspense fallback={<div className="booth-bg grid min-h-[100dvh] place-items-center"><div className="flex items-center gap-3 text-sm font-black text-primary"><LoaderCircle className="animate-spin" size={20} /> Memuat modul dashboard...</div></div>}>
+          <DashboardScreen
+            adminName={adminSession.displayName}
+            uiTheme={uiTheme}
+            filters={filters}
+            frames={frames}
+            sessions={sessions}
+            orders={orders}
+            vouchers={vouchers}
+            booths={booths}
+            admins={admins}
+            auditLogs={auditLogs}
+            boothEvents={boothEvents}
+            sessionPrice={sessionPrice}
+            showLoginSuccess={showLoginSuccess}
+            onCloseLoginSuccess={() => setShowLoginSuccess(false)}
+            onBack={() => window.location.assign("/")}
+            onLogout={() => void logout()}
+            onClearSessions={() => void clearSessions()}
+            onUpdateTheme={updateTheme}
+            onUpdateFilters={updateFilters}
+            onUpdateFrames={updateFrames}
+            onCreateVoucher={createVoucher}
+            onUpdateVoucher={updateVoucher}
+            onToggleVoucher={toggleVoucher}
+            onDeleteVoucher={deleteVoucher}
+            onCreateAdmin={createAdmin}
+            onUpdateAdmin={updateAdmin}
+            onDeactivateAdmin={deactivateAdmin}
+            onRefresh={loadDashboard}
+          />
+        </Suspense>
       ) : (
         <LoginScreen uiTheme={uiTheme} onBack={() => window.location.assign("/")} onLogin={login} />
       )}

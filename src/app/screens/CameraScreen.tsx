@@ -14,9 +14,17 @@ interface CameraScreenProps {
   frames?: TemplateOption[];
   onBack: () => void;
   onComplete: (photos: string[]) => void;
+  onDeviceStatus?: (status: {
+    available: boolean;
+    status: string;
+    selectedDeviceId: string;
+    selectedDeviceLabel: string;
+    devices: number;
+    error: string | null;
+  }) => void;
 }
 
-export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = TEMPLATES, onBack, onComplete }: CameraScreenProps) {
+export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = TEMPLATES, onBack, onComplete, onDeviceStatus }: CameraScreenProps) {
   const totalShots = getCaptureCount(frameLayout);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [cameraState, setCameraState] = useState<"ready" | "countdown" | "flash">("ready");
@@ -44,6 +52,18 @@ export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = 
   } = useCameraStream();
 
   onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    const selectedDevice = devices.find((device) => device.deviceId === selectedDeviceId);
+    onDeviceStatus?.({
+      available: status === "ready",
+      status,
+      selectedDeviceId,
+      selectedDeviceLabel: selectedDevice?.label || "",
+      devices: devices.length,
+      error,
+    });
+  }, [devices, error, onDeviceStatus, selectedDeviceId, status]);
 
   useEffect(() => {
     if (cameraState !== "countdown") {

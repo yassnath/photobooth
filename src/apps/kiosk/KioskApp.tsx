@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence } from "motion/react";
 
 import { ProgressBar } from "../../app/components/shared/ProgressBar";
@@ -67,6 +67,9 @@ export function KioskApp() {
   const goTo = (nextScreen: Screen) => setScreen(nextScreen);
   const resultFormat: ResultFormat = mode === "gif" ? "gif" : mode === "live" ? "live" : "photo";
   const openDashboard = () => window.location.assign("/admin");
+  const reportCameraStatus = useCallback((camera: Record<string, unknown>) => {
+    void reportKioskState("camera", true, { camera }).catch(() => undefined);
+  }, []);
   const rootStyle = {
     minHeight: "100dvh",
     overflow: "hidden",
@@ -161,14 +164,33 @@ export function KioskApp() {
 
   useEffect(() => {
     void cleanupLocalBackups();
-    // Flush any sessions that failed to upload in previous runs
+    // Initial flush of any sessions that failed to upload in previous runs
     void flushUploadQueue((session) => photoboothApi.savePhotoSession(session)).catch(() => undefined);
+
+    // Automatic Background Queue Sync worker: listens for network reconnects & periodically flushes queue
+    const handleOnline = () => {
+      console.log("[BackgroundSyncQueue] Internet connection restored. Syncing offline photo sessions to server...");
+      void flushUploadQueue((session) => photoboothApi.savePhotoSession(session)).catch(() => undefined);
+    };
+
+    window.addEventListener("online", handleOnline);
+    const syncTimer = window.setInterval(() => {
+      if (navigator.onLine) {
+        void flushUploadQueue((session) => photoboothApi.savePhotoSession(session)).catch(() => undefined);
+      }
+    }, 30_000);
+
     void photoboothApi.getConfig().then((runtime) => {
       if (runtime.theme) setUiTheme(runtime.theme);
       if (runtime.filters) setFilters(runtime.filters);
       if (runtime.frames) setFrames(runtime.frames);
       setSessionPrice(runtime.sessionPrice);
     }).catch(() => undefined);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.clearInterval(syncTimer);
+    };
   }, [setFilters, setFrames, setUiTheme]);
 
   useEffect(() => {
@@ -312,6 +334,7 @@ export function KioskApp() {
             templateId={templateId}
             frames={frames}
             onBack={() => goTo("template")}
+            onDeviceStatus={reportCameraStatus}
             onComplete={(capturedPhotos) => {
               setPhotos(capturedPhotos);
               setEditor(createDefaultEditorState());

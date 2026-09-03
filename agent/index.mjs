@@ -96,6 +96,7 @@ function currentStatus() {
   return {
     platform: process.platform,
     printer: cachedPrinter,
+    camera: deviceState.camera || null,
     queueLength: queue.length + (processing ? 1 : 0),
     kioskScreen: deviceState.kioskScreen || "unknown",
     activeSession: Boolean(deviceState.activeSession),
@@ -145,6 +146,7 @@ app.post("/device-state", (request, response) => {
   deviceState = {
     kioskScreen: String(request.body?.kioskScreen || "unknown").slice(0, 80),
     activeSession: Boolean(request.body?.activeSession),
+    camera: typeof request.body?.camera === "object" && request.body.camera ? request.body.camera : undefined,
   };
   response.json({ ok: true });
 });

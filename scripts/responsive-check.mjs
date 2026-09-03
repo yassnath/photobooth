@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -14,9 +16,13 @@ const viewports = [
 ];
 
 await mkdir(artifactsDir, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chromePath });
+const browser = await chromium.launch({
+  headless: true,
+  executablePath: chromePath,
+  args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
+});
 const e2eAdminUsername = process.env.E2E_ADMIN_USERNAME || "admin";
-const e2eAdminPassword = process.env.E2E_ADMIN_PASSWORD || "photobooth123";
+const e2eAdminPassword = process.env.E2E_ADMIN_PASSWORD || process.env.ADMIN_BOOTSTRAP_PASSWORD || "photobooth123";
 const e2eVoucherCode = "E2E" + Date.now().toString(36).toUpperCase();
 
 const setupContext = await browser.newContext();
@@ -77,11 +83,12 @@ for (const viewport of viewports) {
   }
 
   if (viewport.name === "desktop-wide") {
-    await page.getByRole("button", { name: "Voucher" }).click();
+    await page.getByRole("button", { name: /Gunakan Voucher|Voucher/i }).click();
     await page.getByLabel("Kode voucher").fill(e2eVoucherCode);
-    await page.getByRole("button", { name: "Cek" }).click();
-    await page.getByText("Voucher valid", { exact: false }).waitFor();
-    await page.getByRole("button", { name: /Buat QRIS dengan Diskon/i }).click();
+    await page.getByRole("button", { name: /Cek Voucher|Cek/i }).click();
+    await page.getByRole("heading", { name: /Voucher Berhasil Dipasang/i }).waitFor();
+    await page.getByRole("button", { name: /Gunakan Diskon & Tutup/i }).click();
+    await page.getByRole("button", { name: /Lanjut Pembayaran Diskon|Gunakan Voucher Gratis/i }).click();
     await page.getByAltText("QR pembayaran sesi").waitFor();
   }
   await page.getByRole("button", { name: /Simulasikan Pembayaran/i }).click();
@@ -121,8 +128,12 @@ for (const viewport of viewports) {
       throw new Error(`Camera timer did not start from six minutes: ${timerLabel}`);
     }
     await page.getByRole("button", { name: "Take photo" }).click();
-    await page.getByRole("button", { name: /Done/i }).waitFor({ timeout: 22000 });
-    await page.getByRole("button", { name: /Done/i }).click();
+    const continueToEditorButton = page.getByRole("button", { name: /Done|Lanjut ke Editor/i });
+    await continueToEditorButton.waitFor({ timeout: 22000 });
+    await continueToEditorButton.click();
+    await page.getByRole("heading", { name: /Pilih Filter/i }).waitFor();
+    await assertNoHorizontalOverflow(page, `${viewport.name}/editor`);
+    await page.getByRole("button", { name: /Selesai & Lanjut/i }).click();
     await page.getByRole("heading", { name: "Hasil GIF-mu" }).waitFor();
     for (const formatName of ["Foto", "Live Photo", "GIF"]) {
       if (await page.getByRole("button", { name: formatName, exact: true }).count()) {
@@ -133,7 +144,7 @@ for (const viewport of viewports) {
       throw new Error("Result screen still asks the user to choose a format");
     }
     await page.getByAltText("QR unduhan hasil foto").waitFor();
-    await page.getByText("Buka dan download dari ponsel.").waitFor({ timeout: 15000 });
+    await page.getByText(/Buka kamera HP/i).waitFor({ timeout: 15000 });
     const downloadPageUrl = await page.getByRole("link", { name: "Buka halaman download" }).getAttribute("href");
     const downloadPageResponse = await page.request.get(downloadPageUrl);
     if (!downloadPageResponse.ok()) {
@@ -148,7 +159,7 @@ for (const viewport of viewports) {
 
     await Promise.all([
       page.waitForEvent("download", { timeout: 30000 }),
-      page.getByRole("button", { name: "Unduh GIF" }).click(),
+      page.getByRole("button", { name: /Unduh.*GIF/i }).click(),
     ]);
   }
 
@@ -162,7 +173,6 @@ const lockedFormatCases = [
   {
     selection: "Photo",
     heading: "Hasil Fotomu",
-    downloadButton: "Unduh JPG",
     downloadPageLabel: "Download JPG",
     mimeType: "image/jpeg",
     extension: ".jpg",
@@ -170,7 +180,6 @@ const lockedFormatCases = [
   {
     selection: "Live Photo",
     heading: "Hasil Live Photo-mu",
-    downloadButton: "Unduh WEBM",
     downloadPageLabel: "Download WEBM",
     mimeType: "video/webm",
     extension: ".webm",
@@ -195,8 +204,12 @@ for (const formatCase of lockedFormatCases) {
   await page.getByRole("button", { name: /Gunakan Frame 1x1/i }).click();
   await page.locator('[aria-label^="Sisa waktu sesi"]').first().waitFor();
   await page.getByRole("button", { name: "Take photo" }).click();
-  await page.getByRole("button", { name: /Done/i }).waitFor({ timeout: 12000 });
-  await page.getByRole("button", { name: /Done/i }).click();
+  const continueToEditorButton = page.getByRole("button", { name: /Done|Lanjut ke Editor/i });
+  await continueToEditorButton.waitFor({ timeout: 12000 });
+  await continueToEditorButton.click();
+  await page.getByRole("heading", { name: /Pilih Filter/i }).waitFor();
+  await assertNoHorizontalOverflow(page, `${formatCase.selection}/editor`);
+  await page.getByRole("button", { name: /Selesai & Lanjut/i }).click();
   await page.getByRole("heading", { name: formatCase.heading }).waitFor();
 
   for (const formatName of ["Foto", "Live Photo", "GIF"]) {
@@ -205,7 +218,7 @@ for (const formatCase of lockedFormatCases) {
     }
   }
 
-  await page.getByText("Buka dan download dari ponsel.").waitFor({ timeout: 15000 });
+  await page.getByText(/Buka kamera HP/i).waitFor({ timeout: 15000 });
   const downloadPageUrl = await page.getByRole("link", { name: "Buka halaman download" }).getAttribute("href");
   if (!downloadPageUrl) {
     throw new Error(`${formatCase.selection} result did not create a QR download URL`);
@@ -226,7 +239,7 @@ for (const formatCase of lockedFormatCases) {
 
   const [download] = await Promise.all([
     page.waitForEvent("download", { timeout: 30000 }),
-    page.getByRole("button", { name: formatCase.downloadButton }).click(),
+    page.getByRole("button", { name: new RegExp(`Unduh.*${formatCase.extension.slice(1).toUpperCase()}`, "i") }).click(),
   ]);
   if (!download.suggestedFilename().endsWith(formatCase.extension)) {
     throw new Error(`${formatCase.selection} downloaded as ${download.suggestedFilename()}`);

@@ -123,6 +123,36 @@ export interface AdminSession {
   expiresAt?: string;
 }
 
+export interface AdminAccount {
+  id: string;
+  username: string;
+  displayName: string;
+  active: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  isCurrent?: boolean;
+}
+
+export interface AdminAuditLog {
+  id: string;
+  adminId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  metadata: unknown;
+  createdAt: string | null;
+}
+
+export interface BoothEvent {
+  id: string;
+  boothId: string | null;
+  level: string;
+  eventType: string;
+  message: string;
+  metadata: unknown;
+  createdAt: string | null;
+}
+
 export interface PaymentRecord {
   id: string;
   orderId?: string;
@@ -132,9 +162,24 @@ export interface PaymentRecord {
   amount: number;
   baseAmount?: number;
   discountAmount?: number;
-  paidAt?: string;
-  expiresAt?: string;
+  paidAt?: string | null;
+  expiresAt?: string | null;
   voucherCode?: string;
+}
+
+export interface OrderRecord extends PaymentRecord {
+  orderId: string;
+  provider: "mock" | "midtrans" | "voucher" | string;
+  status: "pending" | "paid" | "expired" | "failed";
+  baseAmount: number;
+  discountAmount: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+  expiresAt: string | null;
+  paidAt?: string | null;
+  sessionId?: string | null;
+  resultFormat?: ResultFormat | null;
+  frameLayout?: FrameLayout | null;
 }
 
 export interface Voucher {
@@ -159,6 +204,7 @@ export interface BoothMonitor {
   status: {
     platform?: string;
     printer?: { available?: boolean; name?: string; error?: string };
+    camera?: { available?: boolean; status?: CameraStatus; selectedDeviceId?: string; selectedDeviceLabel?: string; devices?: number; error?: string | null };
     queueLength?: number;
     kioskScreen?: string;
     uptimeSeconds?: number;

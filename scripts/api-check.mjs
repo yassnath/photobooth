@@ -73,6 +73,21 @@ try {
   assert(login.response.ok && login.payload.admin.username === "admin", "Admin login failed.");
   assert(cookie.startsWith("pixiebooth_admin="), "Admin login did not set an HTTP-only session cookie.");
 
+  const createdAdmin = await request("/api/admin/admins", {
+    method: "POST",
+    body: { username: "operator", displayName: "Booth Operator", password: "operator-password" },
+  });
+  assert(createdAdmin.response.status === 201 && createdAdmin.payload.admin.username === "operator", "Admin creation failed.");
+  const adminList = await request("/api/admin/admins");
+  assert(adminList.payload.admins.some((admin) => admin.username === "operator"), "Admin list did not include the new admin.");
+  const selfDeactivate = await request(`/api/admin/admins/${encodeURIComponent(login.payload.admin.id)}`, {
+    method: "PATCH",
+    body: { active: false },
+  });
+  assert(selfDeactivate.response.status === 400, "Current admin should not be able to deactivate itself.");
+  const deactivateAdmin = await request(`/api/admin/admins/${encodeURIComponent(createdAdmin.payload.admin.id)}`, { method: "DELETE" });
+  assert(deactivateAdmin.response.status === 204, "Admin deactivation failed.");
+
   const voucher = await request("/api/admin/vouchers", {
     method: "POST",
     body: {
@@ -164,6 +179,7 @@ try {
 
   const bootstrap = await request("/api/admin/bootstrap");
   assert(bootstrap.payload.sessions.length === 1, "Stored session did not appear in admin gallery.");
+  assert(bootstrap.payload.orders.some((order) => order.id === payment.id && order.sessionId === sessionId), "Stored order did not appear in admin orders.");
   assert(bootstrap.payload.vouchers[0].usedCount === 1, "Voucher redemption counter is incorrect.");
   assert(bootstrap.payload.booths[0].online === true, "Booth monitoring did not become online.");
 
@@ -178,7 +194,7 @@ try {
     .digest("hex");
   assert(verifyMidtransWebhook(webhookConfig, webhookPayload), "Midtrans webhook signature verification failed.");
 
-  await application.database.run("UPDATE media_assets SET expires_at = 0");
+  await application.database.run("UPDATE photos SET expires_at = 0");
   const retention = await request("/api/admin/retention/run", { method: "POST" });
   assert(retention.response.ok && retention.payload.deletedAssets >= 2, "Retention worker did not delete expired media.");
   const expiredFile = await request("/api/results/" + encodeURIComponent(resultToken) + "/file");
@@ -187,7 +203,7 @@ try {
   const missingApi = await request("/api/does-not-exist");
   assert(missingApi.response.status === 404 && missingApi.payload.error, "Unknown API routes did not return JSON 404.");
 
-  console.log("API integration passed: auth, voucher, one-payment-per-session, media, monitoring, webhook, and retention.");
+  console.log("API integration passed: auth, admin management, voucher, one-payment-per-session, media, monitoring, webhook, and retention.");
 } finally {
   await new Promise((resolveClose) => server.close(resolveClose));
   await application.close();
