@@ -1,0 +1,4 @@
+{"timestamp":"2026-09-09T01:43:40.509Z","level":"INFO","message":"Test log entry created","test":true}
+{"timestamp":"2026-09-09T01:43:40.533Z","level":"METRIC","metric":"test_execution_time","value":42,"unit":"ms"}
+{"timestamp":"2026-09-09T01:53:20.362Z","level":"INFO","message":"Test log entry created","test":true}
+{"timestamp":"2026-09-09T01:53:20.364Z","level":"METRIC","metric":"test_execution_time","value":42,"unit":"ms"}
