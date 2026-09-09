@@ -8,7 +8,7 @@ interface FramesTabProps {
   frames: FrameTemplate[];
   frameDraft: FrameTemplate;
   setFrameDraft: React.Dispatch<React.SetStateAction<FrameTemplate>>;
-  frameFormRef: React.RefObject<HTMLDivElement | null>;
+  frameFormRef: React.RefObject<HTMLDivElement>;
   loadFrameOverlay: (file?: File) => void;
   scanAndLockSlots: () => void;
   saveFrame: () => void;

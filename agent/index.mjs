@@ -129,7 +129,7 @@ app.use((request, response, next) => {
     response.setHeader("Access-Control-Allow-Origin", origin);
     response.setHeader("Vary", "Origin");
   }
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Agent-Token, Authorization");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   if (request.method === "OPTIONS") {
     response.status(204).end();
@@ -139,10 +139,23 @@ app.use((request, response, next) => {
 });
 app.use(express.json({ limit: "32mb" }));
 
+/**
+ * Optional write-endpoint guard: if BOOTH_AGENT_TOKEN is configured,
+ * callers must supply it via X-Agent-Token or Authorization: Bearer <token>.
+ * Read-only endpoints (/health, /status, /jobs/:id) are always public.
+ */
+function requireAgentToken(request, response, next) {
+  if (!boothToken) { next(); return; } // Token not configured — open mode
+  const header = request.headers["x-agent-token"] ||
+    (request.headers.authorization?.startsWith("Bearer ") ? request.headers.authorization.slice(7) : "");
+  if (header === boothToken) { next(); return; }
+  response.status(401).json({ error: "Agent token tidak valid atau tidak ada." });
+}
+
 app.get("/health", (_request, response) => response.json({ ok: true, ...currentStatus() }));
 app.get("/status", (_request, response) => response.json(currentStatus()));
 
-app.post("/device-state", (request, response) => {
+app.post("/device-state", requireAgentToken, (request, response) => {
   deviceState = {
     kioskScreen: String(request.body?.kioskScreen || "unknown").slice(0, 80),
     activeSession: Boolean(request.body?.activeSession),
@@ -151,7 +164,7 @@ app.post("/device-state", (request, response) => {
   response.json({ ok: true });
 });
 
-app.post("/print", async (request, response) => {
+app.post("/print", requireAgentToken, async (request, response) => {
   const image = parseImage(request.body?.dataUrl);
   if (!image) {
     response.status(400).json({ error: "Print agent hanya menerima JPEG atau PNG data URL." });

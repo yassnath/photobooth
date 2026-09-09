@@ -61,16 +61,18 @@ function processChromaKey(overlayImage: HTMLImageElement, width: number, height:
 
   ctx.drawImage(overlayImage, 0, 0, width, height);
   const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
+  const buf32 = new Uint32Array(imageData.data.buffer);
+  const len = buf32.length;
 
-  // Greenscreen detection threshold (Dominant Green Channel)
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
+  // High-performance 32-bit Greenscreen detection (Dominant Green Channel)
+  for (let i = 0; i < len; i++) {
+    const pixel = buf32[i];
+    const r = pixel & 0xff;
+    const g = (pixel >> 8) & 0xff;
+    const b = (pixel >> 16) & 0xff;
 
     if (g > 65 && g > r * 1.15 && g > b * 1.15) {
-      data[i + 3] = 0; // Alpha = 0 (Transparent)
+      buf32[i] = 0; // Alpha = 0 (Transparent)
     }
   }
 
@@ -330,4 +332,38 @@ export async function downloadLiveResult(options: ResultExportOptions) {
   const blob = await createLiveResultBlob(options);
   const extension = blob.type === "image/gif" ? "gif" : "webm";
   downloadBlob(blob, `pixiebooth-live-${Date.now()}.${extension}`);
+}
+
+export async function createBoomerangResultBlob(options: ResultExportOptions) {
+  const { canvas, context, images } = await createMotionCanvas(options);
+  if (images.length === 0) throw new Error("Belum ada foto untuk diekspor.");
+
+  await ensureFontsLoaded();
+
+  // Create ping-pong sequence: 0, 1, 2, ..., N-1, N-2, ..., 1
+  const forward = images.length > 1 ? images : Array.from({ length: 5 }, () => images[0]);
+  const backward = forward.slice(1, -1).reverse();
+  const pingPong = [...forward, ...backward];
+
+  const frameData: Uint8ClampedArray[] = pingPong.map((image, index) => {
+    drawMotionFrame(context, canvas, image, options, pingPong.length === 1 ? 0 : index / (pingPong.length - 1));
+    return context.getImageData(0, 0, canvas.width, canvas.height).data;
+  });
+
+  const bytes = await encodeGifInWorker(frameData, canvas.width, canvas.height, 180);
+  return new Blob([bytes.slice()], { type: "image/gif" });
+}
+
+export async function downloadBoomerangResult(options: ResultExportOptions) {
+  const blob = await createBoomerangResultBlob(options);
+  downloadBlob(blob, `pixiebooth-boomerang-${Date.now()}.gif`);
+}
+
+export async function createVideoResultBlob(options: ResultExportOptions) {
+  return createLiveResultBlob(options);
+}
+
+export async function downloadVideoResult(options: ResultExportOptions) {
+  const blob = await createVideoResultBlob(options);
+  downloadBlob(blob, `pixiebooth-video-${Date.now()}.webm`);
 }

@@ -47,15 +47,15 @@ interface DashboardScreenProps {
 }
 
 const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: React.ReactNode }> = [
-  { id: "overview",   label: "Overview",    icon: <Power size={16} /> },
-  { id: "orders",     label: "Pesanan",     icon: <ReceiptText size={16} /> },
-  { id: "theme",      label: "Tema",        icon: <Palette size={16} /> },
-  { id: "gallery",    label: "Galeri",      icon: <Image size={16} /> },
-  { id: "vouchers",   label: "Voucher",     icon: <TicketPercent size={16} /> },
-  { id: "filters",    label: "Filter",      icon: <Sliders size={16} /> },
-  { id: "frames",     label: "Frame",       icon: <Wand2 size={16} /> },
-  { id: "monitoring", label: "Monitoring",  icon: <MonitorCog size={16} /> },
-  { id: "admins",     label: "Admin",       icon: <UserCog size={16} /> },
+  { id: "overview", label: "Overview", icon: <Power size={16} /> },
+  { id: "orders", label: "Pesanan", icon: <ReceiptText size={16} /> },
+  { id: "theme", label: "Tema", icon: <Palette size={16} /> },
+  { id: "gallery", label: "Galeri", icon: <Image size={16} /> },
+  { id: "vouchers", label: "Voucher", icon: <TicketPercent size={16} /> },
+  { id: "filters", label: "Filter", icon: <Sliders size={16} /> },
+  { id: "frames", label: "Frame", icon: <Wand2 size={16} /> },
+  { id: "monitoring", label: "Monitoring", icon: <MonitorCog size={16} /> },
+  { id: "admins", label: "Admin", icon: <UserCog size={16} /> },
 ];
 
 export function DashboardScreen(props: DashboardScreenProps) {

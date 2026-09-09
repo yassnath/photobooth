@@ -65,7 +65,7 @@ export function KioskApp() {
   const [frames, setFrames] = useLocalStorageState<TemplateOption[]>("pixiebooth.frames", TEMPLATES);
 
   const goTo = (nextScreen: Screen) => setScreen(nextScreen);
-  const resultFormat: ResultFormat = mode === "gif" ? "gif" : mode === "live" ? "live" : "photo";
+  const resultFormat: ResultFormat = mode === "strip" ? "photo" : mode;
   const openDashboard = () => window.location.assign("/admin");
   const reportCameraStatus = useCallback((camera: Record<string, unknown>) => {
     void reportKioskState("camera", true, { camera }).catch(() => undefined);
@@ -329,6 +329,7 @@ export function KioskApp() {
         {screen === "camera" && sessionEndsAt && (
           <CameraScreen
             key="camera"
+            mode={mode}
             frameLayout={frameLayout}
             sessionEndsAt={sessionEndsAt}
             templateId={templateId}

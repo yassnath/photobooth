@@ -127,8 +127,16 @@ export function AdminApp() {
     setBoothEvents([]);
   };
 
-  const createVoucher = async (draft: Parameters<typeof photoboothApi.createVoucher>[0]) => {
-    const res = await photoboothApi.createVoucher(draft);
+  const createVoucher = async (draft: Partial<Voucher>) => {
+    if (!draft.code) return;
+    const res = await photoboothApi.createVoucher({
+      code: draft.code,
+      discountType: draft.discountType || "fixed",
+      discountValue: draft.discountValue || 0,
+      maxUses: draft.maxUses ?? null,
+      startsAt: draft.startsAt,
+      expiresAt: draft.expiresAt,
+    });
     if (res?.voucher) {
       setVouchers((current) => [res.voucher, ...current.filter((item): item is Voucher => Boolean(item && item.code))]);
     }

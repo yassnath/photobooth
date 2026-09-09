@@ -22,10 +22,21 @@ interface CameraScreenProps {
     devices: number;
     error: string | null;
   }) => void;
+  mode?: import("../types/photobooth").CaptureMode;
 }
 
-export function CameraScreen({ frameLayout, sessionEndsAt, templateId, frames = TEMPLATES, onBack, onComplete, onDeviceStatus }: CameraScreenProps) {
-  const totalShots = getCaptureCount(frameLayout);
+export function CameraScreen({
+  mode = "photo",
+  frameLayout,
+  sessionEndsAt,
+  templateId,
+  frames = TEMPLATES,
+  onBack,
+  onComplete,
+  onDeviceStatus,
+}: CameraScreenProps) {
+  const isMotionMode = mode === "gif" || mode === "boomerang" || mode === "live" || mode === "video";
+  const totalShots = isMotionMode ? Math.max(getCaptureCount(frameLayout), 4) : getCaptureCount(frameLayout);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [cameraState, setCameraState] = useState<"ready" | "countdown" | "flash">("ready");
   const [timerDuration, setTimerDuration] = useState<3 | 5 | 10>(3);

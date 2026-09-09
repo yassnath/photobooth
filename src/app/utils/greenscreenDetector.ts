@@ -56,19 +56,20 @@ export function detectGreenscreenSlotsFromCanvas(
   try {
     ctx.drawImage(img, 0, 0, width, height);
     const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
+    const buf32 = new Uint32Array(imageData.data.buffer);
 
     const rowHasGreen = new Array(height).fill(false);
     const rowMinX = new Array(height).fill(width);
     const rowMaxX = new Array(height).fill(-1);
 
     for (let y = 0; y < height; y++) {
+      const rowOffset = y * width;
       for (let x = 0; x < width; x++) {
-        const idx = (y * width + x) * 4;
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-        const a = data[idx + 3];
+        const pixel = buf32[rowOffset + x];
+        const a = (pixel >> 24) & 0xff;
+        const b = (pixel >> 16) & 0xff;
+        const g = (pixel >> 8) & 0xff;
+        const r = pixel & 0xff;
 
         // Green detection: High green channel relative to red/blue
         // OR transparent cutout windows INSIDE the frame boundary (not outer margins)

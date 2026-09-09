@@ -9,7 +9,16 @@ import { ScannableQRCode } from "../components/shared/ScannableQRCode";
 import { SessionTimer } from "../components/shared/SessionTimer";
 import { FILTERS, SAMPLE_PHOTOS, TEMPLATES } from "../data/photobooth";
 import type { CaptureMode, EditorState, FilterOption, FrameLayout, ResultFormat, TemplateOption } from "../types/photobooth";
-import { createGifResultBlob, createLiveResultBlob, createPhotoResultBlob, downloadGifResult, downloadLiveResult, downloadPhotoResult } from "../utils/exportResult";
+import {
+  createBoomerangResultBlob,
+  createGifResultBlob,
+  createLiveResultBlob,
+  createPhotoResultBlob,
+  downloadBoomerangResult,
+  downloadGifResult,
+  downloadLiveResult,
+  downloadPhotoResult,
+} from "../utils/exportResult";
 import { saveLocalResultBackup } from "../../shared/storage/localPhotoBackup";
 
 interface ResultScreenProps {
@@ -35,6 +44,8 @@ const formatMeta: Record<ResultFormat, { heading: string; extension: string }> =
   photo: { heading: "Hasil Fotomu", extension: "JPG" },
   live: { heading: "Hasil Live Photo-mu", extension: "WEBM" },
   gif: { heading: "Hasil GIF-mu", extension: "GIF" },
+  boomerang: { heading: "Hasil Boomerang-mu", extension: "GIF" },
+  video: { heading: "Hasil Video-mu", extension: "WEBM" },
 };
 
 function blobToDataUrl(blob: Blob) {
@@ -95,9 +106,11 @@ export function ResultScreen({
         const options = { photos, frameLayout, template, editor, filters, brandName };
         const blob = format === "gif"
           ? await createGifResultBlob(options)
-          : format === "live"
-            ? await createLiveResultBlob(options)
-            : await createPhotoResultBlob(options);
+          : format === "boomerang"
+            ? await createBoomerangResultBlob(options)
+            : format === "live" || format === "video"
+              ? await createLiveResultBlob(options)
+              : await createPhotoResultBlob(options);
         await saveLocalResultBackup(sessionId, format, blob);
         const dataUrl = await blobToDataUrl(blob);
         const response = await fetch(`/api/results/${encodeURIComponent(sessionId)}`, {
@@ -134,7 +147,9 @@ export function ResultScreen({
     try {
       if (format === "gif") {
         await downloadGifResult(options);
-      } else if (format === "live") {
+      } else if (format === "boomerang") {
+        await downloadBoomerangResult(options);
+      } else if (format === "live" || format === "video") {
         await downloadLiveResult(options);
       } else {
         await downloadPhotoResult(options);

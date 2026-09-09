@@ -16,7 +16,7 @@ export type CaptureMode = "photo" | "strip" | "gif" | "boomerang" | "live" | "vi
 
 export type FrameLayout = "1x1" | "1x2" | "1x3" | "1x4";
 
-export type ResultFormat = "photo" | "live" | "gif";
+export type ResultFormat = "photo" | "live" | "gif" | "boomerang" | "video";
 
 export type PaymentMethod = "qris" | "voucher";
 
@@ -32,6 +32,8 @@ export type TemplateCategory =
   | "Couple"
   | "Friends"
   | "Custom";
+
+export type FrameCategory = Exclude<TemplateCategory, "All">;
 
 export type EditorTab = "filters" | "stickers" | "text" | "adjust";
 
@@ -66,6 +68,8 @@ export interface TemplateOption {
   chromaKeyGreen?: boolean;
   slots?: FrameSlotRect[];
 }
+
+export type FrameTemplate = TemplateOption;
 
 export interface FilterOption {
   id: string;
