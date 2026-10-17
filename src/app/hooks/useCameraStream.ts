@@ -3,9 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CameraDevice, CameraStatus, FacingMode } from "../types/photobooth";
 
 const CAMERA_DEVICE_STORAGE_KEY = "pixiebooth.preferred-camera-device";
-const externalCameraPattern = /\b(usb|external|webcam|logitech|brio|c9\d\d|obsbot|elgato|cam link|capture|sony|canon|nikon|fujifilm|droidcam|ivcam)\b/i;
-const integratedCameraPattern = /\b(integrated|built.?in|facetime|front|user facing|hd user facing)\b/i;
-const virtualCameraPattern = /\b(virtual|obs virtual|snap camera|xsplit|manycam)\b/i;
+const externalCameraPattern = /\b(usb|external|webcam|logitech|brio|c9\d\d|obsbot|elgato|cam link|capture|sony|canon|nikon|fujifilm|avermedia|epoccam|iriun|droidcam|ivcam|camo|streamcam)\b/i;
+const integratedCameraPattern = /\b(integrated|built.?in|facetime|front|user facing|hd user facing|internal|chicony|realtek|sunplus)\b/i;
+const virtualCameraPattern = /\b(virtual|obs virtual|snap camera|xsplit|manycam|vmix)\b/i;
 
 interface StartCameraOptions {
   deviceId?: string;
@@ -17,11 +17,21 @@ interface CaptureFrameOptions {
   mirror?: boolean;
 }
 
+export function classifyCamera(label: string): "integrated" | "external" | "virtual" | "other" {
+  const normalized = (label || "").toLowerCase();
+  if (virtualCameraPattern.test(normalized)) return "virtual";
+  if (externalCameraPattern.test(normalized)) return "external";
+  if (integratedCameraPattern.test(normalized)) return "integrated";
+  return "other";
+}
+
 function toCameraDevice(device: MediaDeviceInfo, index: number): CameraDevice {
+  const label = device.label || `Camera ${index + 1}`;
   return {
     deviceId: device.deviceId,
     groupId: device.groupId,
-    label: device.label || `Camera ${index + 1}`,
+    label,
+    kind: classifyCamera(label),
   };
 }
 
@@ -37,7 +47,7 @@ function rememberDeviceId(deviceId: string) {
   try {
     if (deviceId) localStorage.setItem(CAMERA_DEVICE_STORAGE_KEY, deviceId);
   } catch {
-    // Some kiosk policies and private modes disable localStorage writes.
+    // Kiosk/private mode protection
   }
 }
 
@@ -45,10 +55,10 @@ function cameraScore(device: CameraDevice, preferredDeviceId: string, index: num
   let score = 100 - index;
   const label = device.label || "";
 
-  if (device.deviceId && device.deviceId === preferredDeviceId) score += 35;
+  if (device.deviceId && device.deviceId === preferredDeviceId) score += 40;
   if (externalCameraPattern.test(label)) score += 80;
   if (integratedCameraPattern.test(label)) score += 20;
-  if (virtualCameraPattern.test(label)) score -= 120;
+  if (virtualCameraPattern.test(label)) score -= 100;
   if (label) score += 5;
 
   return score;
@@ -68,19 +78,19 @@ function choosePreferredCamera(devices: CameraDevice[], preferredDeviceId = "") 
 function cameraErrorMessage(error: unknown) {
   if (error instanceof DOMException) {
     if (error.name === "NotAllowedError" || error.name === "SecurityError") {
-      return "Camera permission is blocked. Allow camera access in your browser, then try again.";
+      return "Izin kamera diblokir. Izinkan akses kamera di browser lalu coba lagi.";
     }
 
     if (error.name === "NotFoundError" || error.name === "OverconstrainedError") {
-      return "No matching camera was found. Plug in a camera or choose another device.";
+      return "Kamera tidak ditemukan. Hubungkan webcam atau pilih kamera lain.";
     }
 
     if (error.name === "NotReadableError") {
-      return "The selected camera is already in use by another app.";
+      return "Kamera sedang digunakan oleh aplikasi lain.";
     }
   }
 
-  return "Camera could not be started. Try another camera or refresh the device list.";
+  return "Kamera tidak dapat dimulai. Coba pilih kamera lain atau segarkan daftar perangkat.";
 }
 
 export function useCameraStream() {
@@ -89,12 +99,15 @@ export function useCameraStream() {
   const didAutoStartRef = useRef(false);
   const isAutoSwitchingRef = useRef(false);
   const manualDeviceSelectionRef = useRef(false);
+  const knownDeviceIdsRef = useRef<Set<string>>(new Set());
+
   const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [facingMode, setFacingMode] = useState<FacingMode>("user");
   const [activeFacingMode, setActiveFacingMode] = useState<FacingMode | undefined>();
   const [status, setStatus] = useState<CameraStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [newlyDetectedCamera, setNewlyDetectedCamera] = useState<CameraDevice | null>(null);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -110,7 +123,7 @@ export function useCameraStream() {
     if (element && streamRef.current) {
       element.srcObject = streamRef.current;
       void element.play().catch(() => {
-        // Some browsers wait for a user gesture even after permission succeeds.
+        // Browser gesture fallback
       });
     }
   }, []);
@@ -121,11 +134,27 @@ export function useCameraStream() {
       return [];
     }
 
-    const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-    const cameraDevices = mediaDevices.filter((device) => device.kind === "videoinput").map(toCameraDevice);
-    setDevices(cameraDevices);
+    try {
+      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+      const cameraDevices = mediaDevices.filter((device) => device.kind === "videoinput").map(toCameraDevice);
+      
+      // Deteksi jika ada kamera baru yang terpasang (misal webcam eksternal USB baru di-plug)
+      if (knownDeviceIdsRef.current.size > 0) {
+        const addedDevice = cameraDevices.find(
+          (d) => d.deviceId && !knownDeviceIdsRef.current.has(d.deviceId) && d.label
+        );
+        if (addedDevice) {
+          setNewlyDetectedCamera(addedDevice);
+        }
+      }
 
-    return cameraDevices;
+      knownDeviceIdsRef.current = new Set(cameraDevices.map((d) => d.deviceId).filter(Boolean));
+      setDevices(cameraDevices);
+      return cameraDevices;
+    } catch {
+      setDevices([]);
+      return [];
+    }
   }, []);
 
   const bindStream = useCallback(
@@ -134,7 +163,7 @@ export function useCameraStream() {
       stream.getVideoTracks().forEach((track) => {
         track.onended = () => {
           setStatus("blocked");
-          setError("Camera disconnected. Reconnecting to the best available camera...");
+          setError("Kamera terputus. Mencoba menghubungkan kembali ke kamera terbaik yang tersedia...");
           void refreshDevices();
         };
       });
@@ -144,7 +173,7 @@ export function useCameraStream() {
         try {
           await videoElementRef.current.play();
         } catch {
-          // Some browsers require a gesture, but the stream is still bound.
+          // Handled
         }
       }
 
@@ -170,7 +199,7 @@ export function useCameraStream() {
     async (options: StartCameraOptions = {}) => {
       if (!navigator.mediaDevices?.getUserMedia) {
         setStatus("unsupported");
-        setError("Camera access is not supported in this browser or origin. Use HTTPS or localhost.");
+        setError("Akses kamera tidak didukung di browser ini. Gunakan HTTPS atau localhost.");
         return false;
       }
 
@@ -184,8 +213,8 @@ export function useCameraStream() {
         ? null
         : choosePreferredCamera(knownDevices, readStoredDeviceId());
       const baseVideoConstraints: MediaTrackConstraints = {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
         frameRate: { ideal: 30, max: 60 },
       };
 
@@ -201,6 +230,7 @@ export function useCameraStream() {
         await bindStream(stream);
         return true;
       } catch (firstError) {
+        // Fallback 1: Jika exact deviceId gagal (misal webcam eksternal sibuk/error), coba fallback device apa pun
         try {
           const fallbackStream = await navigator.mediaDevices.getUserMedia({
             audio: false,
@@ -209,10 +239,17 @@ export function useCameraStream() {
           await bindStream(fallbackStream);
           return true;
         } catch {
-          setStatus("blocked");
-          setError(cameraErrorMessage(firstError));
-          await refreshDevices();
-          return false;
+          // Fallback 2: Coba dengan constraint video minimalis
+          try {
+            const minStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+            await bindStream(minStream);
+            return true;
+          } catch {
+            setStatus("blocked");
+            setError(cameraErrorMessage(firstError));
+            await refreshDevices();
+            return false;
+          }
         }
       }
     },
@@ -228,6 +265,29 @@ export function useCameraStream() {
     },
     [startCamera],
   );
+
+  // Helper 1: Beralih langsung ke kamera laptop bawaan (Built-in / Integrated)
+  const switchToIntegrated = useCallback(async () => {
+    manualDeviceSelectionRef.current = true;
+    const currentDevices = devices.length > 0 ? devices : await refreshDevices();
+    const integrated = currentDevices.find((d) => d.kind === "integrated") || currentDevices[0];
+    if (integrated?.deviceId) {
+      await selectDevice(integrated.deviceId);
+    } else {
+      setFacingMode("user");
+      await startCamera({ facingMode: "user" });
+    }
+  }, [devices, refreshDevices, selectDevice, startCamera]);
+
+  // Helper 2: Beralih langsung ke webcam eksternal / pihak ketiga
+  const switchToExternal = useCallback(async () => {
+    manualDeviceSelectionRef.current = true;
+    const currentDevices = devices.length > 0 ? devices : await refreshDevices();
+    const external = currentDevices.find((d) => d.kind === "external" || d.kind === "virtual") || currentDevices[1] || currentDevices[0];
+    if (external?.deviceId) {
+      await selectDevice(external.deviceId);
+    }
+  }, [devices, refreshDevices, selectDevice]);
 
   const switchCamera = useCallback(async () => {
     const cameraDevices = devices.length > 0 ? devices : await refreshDevices();
@@ -245,6 +305,10 @@ export function useCameraStream() {
     setFacingMode(nextFacingMode);
     await startCamera({ facingMode: nextFacingMode });
   }, [devices, facingMode, refreshDevices, selectDevice, selectedDeviceId, startCamera]);
+
+  const dismissNewCameraAlert = useCallback(() => {
+    setNewlyDetectedCamera(null);
+  }, []);
 
   const captureFrame = useCallback(({ filter, mirror = false }: CaptureFrameOptions = {}) => {
     const video = videoElementRef.current;
@@ -273,7 +337,7 @@ export function useCameraStream() {
 
     context.drawImage(video, 0, 0, width, height);
 
-    return canvas.toDataURL("image/jpeg", 0.92);
+    return canvas.toDataURL("image/jpeg", 0.95);
   }, []);
 
   useEffect(() => {
@@ -289,6 +353,7 @@ export function useCameraStream() {
     return () => stopStream();
   }, []);
 
+  // Otomatis memilih kamera terbaik jika belum dipilih secara manual
   useEffect(() => {
     if (manualDeviceSelectionRef.current || isAutoSwitchingRef.current || status === "requesting") {
       return undefined;
@@ -315,6 +380,7 @@ export function useCameraStream() {
     return undefined;
   }, [devices, selectedDeviceId, startCamera, status]);
 
+  // Listener perubahan perangkat keras USB/Webcam (Plug & Unplug)
   useEffect(() => {
     if (!navigator.mediaDevices?.addEventListener) {
       return undefined;
@@ -323,20 +389,36 @@ export function useCameraStream() {
     const handleDeviceChange = () => {
       void refreshDevices().then((nextDevices) => {
         if (selectedDeviceId && !nextDevices.some((device) => device.deviceId === selectedDeviceId)) {
+          // Jika webcam yang sedang aktif dicabut, otomatis alihkan ke kamera bawaan
           manualDeviceSelectionRef.current = false;
           setSelectedDeviceId("");
+          const fallbackDevice = nextDevices.find((d) => d.kind === "integrated") || nextDevices[0];
+          if (fallbackDevice?.deviceId) {
+            void selectDevice(fallbackDevice.deviceId);
+          }
         }
       });
     };
 
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
     return () => navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
-  }, [refreshDevices]);
+  }, [refreshDevices, selectDevice, selectedDeviceId]);
+
+  const activeDevice = devices.find((d) => d.deviceId === selectedDeviceId);
+  const integratedDevice = devices.find((d) => d.kind === "integrated") || null;
+  const externalDevices = devices.filter((d) => d.kind === "external" || d.kind === "virtual");
+  const hasMultipleCameras = devices.length > 1;
 
   return {
     videoRef,
     devices,
     selectedDeviceId,
+    activeDevice,
+    integratedDevice,
+    externalDevices,
+    hasMultipleCameras,
+    newlyDetectedCamera,
+    dismissNewCameraAlert,
     facingMode,
     activeFacingMode,
     status,
@@ -345,6 +427,8 @@ export function useCameraStream() {
     startCamera,
     selectDevice,
     switchCamera,
+    switchToIntegrated,
+    switchToExternal,
     captureFrame,
   };
 }

@@ -33,6 +33,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   private reset = () => {
+    if (
+      this.state.error?.message.includes("dynamically imported module") ||
+      this.state.error?.message.includes("Failed to fetch")
+    ) {
+      window.location.reload();
+      return;
+    }
     this.setState({ error: null });
   };
 

@@ -248,8 +248,10 @@ export function KioskApp() {
 
   return (
     <div className={isDark ? "dark" : ""} style={rootStyle}>
-      <ProgressBar screen={screen} />
-      <AnimatePresence mode="wait">
+      {screen !== "welcome" && <ProgressBar screen={screen} />}
+
+      {/* Gerbang Istana WelcomeScreen (memungkinkan screen selanjutnya ditumpuk fade di atasnya saat zoom) */}
+      <AnimatePresence>
         {screen === "welcome" && (
           <WelcomeScreen
             key="welcome"
@@ -258,7 +260,9 @@ export function KioskApp() {
             onDashboard={openDashboard}
           />
         )}
+      </AnimatePresence>
 
+      <AnimatePresence mode="wait">
         {screen === "mode" && (
           <ModeSelectorScreen
             key="mode"

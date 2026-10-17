@@ -51,6 +51,12 @@ export function CameraScreen({
     videoRef,
     devices,
     selectedDeviceId,
+    activeDevice,
+    integratedDevice,
+    externalDevices,
+    hasMultipleCameras,
+    newlyDetectedCamera,
+    dismissNewCameraAlert,
     facingMode,
     activeFacingMode,
     status,
@@ -59,6 +65,8 @@ export function CameraScreen({
     startCamera,
     selectDevice,
     switchCamera,
+    switchToIntegrated,
+    switchToExternal,
     captureFrame,
   } = useCameraStream();
 
@@ -206,12 +214,22 @@ export function CameraScreen({
                 {error && <p className="mx-auto mt-2 max-w-xs text-xs text-white/45">{error}</p>}
               </div>
               {status !== "requesting" && (
-                <button
-                  onClick={() => startCamera({ deviceId: selectedDeviceId || undefined })}
-                  className="mt-1 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
-                >
-                  Try Camera Again
-                </button>
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={() => startCamera({ deviceId: selectedDeviceId || undefined })}
+                    className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                  >
+                    Coba Kamera Lagi
+                  </button>
+                  {integratedDevice && selectedDeviceId !== integratedDevice.deviceId && (
+                    <button
+                      onClick={switchToIntegrated}
+                      className="rounded-full border border-pink-400/50 bg-pink-500/40 px-4 py-2 text-xs font-bold text-white shadow-sm backdrop-blur-sm transition-all hover:bg-pink-500/70"
+                    >
+                      💻 Beralih ke Kamera Laptop
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </>
@@ -227,6 +245,43 @@ export function CameraScreen({
         )}
 
         <div className="camera-top-overlay absolute inset-x-0 top-0 flex flex-col gap-2 p-3 sm:p-4 z-30">
+          {/* Banner Notifikasi Kamera Baru Terdeteksi (Plug-in Webcam) */}
+          <AnimatePresence>
+            {newlyDetectedCamera && (
+              <motion.div
+                initial={{ y: -30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -20, opacity: 0 }}
+                className="flex items-center justify-between gap-2.5 rounded-2xl border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/95 to-amber-600/90 px-3.5 py-1.5 text-xs font-bold text-white shadow-xl backdrop-blur-md"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="text-sm">📷</span>
+                  <span className="truncate">Webcam baru terdeteksi: <strong>{newlyDetectedCamera.label}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void selectDevice(newlyDetectedCamera.deviceId);
+                      dismissNewCameraAlert();
+                    }}
+                    className="rounded-xl bg-white px-3 py-1 text-[11px] font-black text-amber-950 shadow-xs hover:bg-amber-100"
+                  >
+                    Gunakan Webcam Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={dismissNewCameraAlert}
+                    className="rounded-xl bg-black/20 px-2 py-1 text-xs text-white hover:bg-black/40"
+                    aria-label="Tutup notifikasi"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={onBack}
@@ -273,37 +328,87 @@ export function CameraScreen({
                 onClick={switchCamera}
                 className="rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm transition-transform hover:scale-110"
                 aria-label="Switch camera"
+                title="Ganti ke kamera berikutnya"
               >
                 <SwitchCamera size={17} />
               </button>
             </div>
           </div>
 
-          <div className="camera-device-bar flex items-center gap-2 rounded-2xl bg-black/35 p-2 backdrop-blur-sm sm:ml-auto sm:w-auto">
-            <select
-              value={selectedDeviceId}
-              onChange={(event) => selectDevice(event.target.value)}
-              disabled={devices.length === 0 || status === "requesting"}
-              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-white outline-none sm:w-72 sm:flex-none"
-              aria-label="Select camera device"
-            >
-              {devices.length === 0 ? (
-                <option value="">No camera detected</option>
-              ) : (
-                devices.map((device, index) => (
-                  <option key={device.deviceId || index} value={device.deviceId} className="text-gray-950">
-                    {device.label}
-                  </option>
-                ))
-              )}
-            </select>
-            <button
-              onClick={() => refreshDevices()}
-              className="rounded-xl bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-              aria-label="Refresh camera list"
-            >
-              <RefreshCcw size={16} />
-            </button>
+          {/* Bar Kontrol Perangkat Kamera: Opsi Cepat Kamera Laptop vs Webcam Eksternal */}
+          <div className="camera-device-bar flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/45 p-2 backdrop-blur-md sm:ml-auto sm:w-auto">
+            {/* Opsi Cepat: 1-Click Toggle Kamera Laptop vs Webcam Eksternal */}
+            {hasMultipleCameras && (
+              <div className="flex items-center gap-1">
+                {integratedDevice && (
+                  <button
+                    type="button"
+                    onClick={switchToIntegrated}
+                    className={`flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all ${
+                      activeDevice?.kind === "integrated"
+                        ? "bg-pink-500 text-white shadow-xs"
+                        : "bg-white/10 text-white/75 hover:bg-white/20 hover:text-white"
+                    }`}
+                    title="Gunakan kamera bawaan laptop"
+                  >
+                    <span>💻 Kamera Laptop</span>
+                  </button>
+                )}
+                {externalDevices.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={switchToExternal}
+                    className={`flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all ${
+                      activeDevice?.kind === "external" || activeDevice?.kind === "virtual"
+                        ? "bg-amber-400 text-amber-950 shadow-xs"
+                        : "bg-white/10 text-white/75 hover:bg-white/20 hover:text-white"
+                    }`}
+                    title="Gunakan webcam eksternal / USB"
+                  >
+                    <span>📷 Webcam Eksternal</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Dropdown Pemilihan Kamera Terperinci */}
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none">
+              <select
+                value={selectedDeviceId}
+                onChange={(event) => selectDevice(event.target.value)}
+                disabled={devices.length === 0 || status === "requesting"}
+                className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white outline-none sm:w-64"
+                aria-label="Pilih perangkat kamera"
+              >
+                {devices.length === 0 ? (
+                  <option value="">Tidak ada kamera terdeteksi</option>
+                ) : (
+                  devices.map((device, index) => {
+                    const badge =
+                      device.kind === "integrated"
+                        ? "💻 [Laptop]"
+                        : device.kind === "external"
+                        ? "📷 [Webcam USB]"
+                        : device.kind === "virtual"
+                        ? "📱 [Pihak Ketiga/Virtual]"
+                        : "📷";
+                    return (
+                      <option key={device.deviceId || index} value={device.deviceId} className="text-gray-950">
+                        {badge} {device.label}
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+              <button
+                onClick={() => refreshDevices()}
+                className="rounded-xl bg-white/10 p-2 text-white transition-colors hover:bg-white/20 shrink-0"
+                title="Deteksi ulang kamera yang terhubung"
+                aria-label="Deteksi ulang kamera"
+              >
+                <RefreshCcw size={15} />
+              </button>
+            </div>
           </div>
         </div>
 

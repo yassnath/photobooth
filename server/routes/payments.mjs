@@ -77,6 +77,13 @@ export async function updatePaymentStatus(database, payment, status, rawPayload)
     const current = await transaction.get(`SELECT status, voucher_id FROM orders WHERE id = ?${paymentLock}`, payment.id);
     if (!current) return;
     if (current.status === "paid" && status !== "paid") return;
+
+    // Pembayaran yang gagal, kedaluwarsa, atau dibatalkan langsung dihapus dari DB (tidak masuk DB)
+    if (["failed", "expired", "cancel", "deny", "expire"].includes(status)) {
+      await transaction.run("DELETE FROM orders WHERE id = ?", payment.id);
+      return;
+    }
+
     if (current.status === status) {
       await transaction.run("UPDATE orders SET raw_json = ?, updated_at = ? WHERE id = ?", JSON.stringify(rawPayload || {}), now, payment.id);
       return;
@@ -214,7 +221,8 @@ export function createPaymentsRouter({ database, config }) {
       `, providerResult.provider, providerResult.transactionId, providerResult.qrString, providerResult.qrUrl, JSON.stringify(providerResult.raw), Date.now(), payment.id);
       response.status(201).json({ payment: paymentJson(await getPaymentRow(database, payment.id), request) });
     } catch (error) {
-      await updatePaymentStatus(database, payment, "failed", { error: error.message });
+      // Jangan masukkan order gagal ke DB (hapus dari orders)
+      await database.run("DELETE FROM orders WHERE id = ?", payment.id).catch(() => undefined);
       response.status(502).json({ error: error.message });
     }
   }));
@@ -228,13 +236,16 @@ export function createPaymentsRouter({ database, config }) {
     if (payment.status === "pending" && payment.provider === "midtrans" && Date.now() - payment.updated_at > 5000) {
       const providerStatus = await fetchMidtransStatus(config, payment.code).catch(() => null);
       if (providerStatus) {
-        await updatePaymentStatus(database, payment, normalizeMidtransStatus(providerStatus), providerStatus);
-        payment = await getPaymentRow(database, request.params.id);
+        const nextStatus = normalizeMidtransStatus(providerStatus);
+        await updatePaymentStatus(database, payment, nextStatus, providerStatus);
+        const updatedRow = await getPaymentRow(database, request.params.id);
+        payment = updatedRow || { ...payment, status: nextStatus };
       }
     }
     if (payment.status === "pending" && payment.expires_at <= Date.now()) {
       await updatePaymentStatus(database, payment, "expired", { reason: "local-expiry" });
-      payment = await getPaymentRow(database, request.params.id);
+      const updatedRow = await getPaymentRow(database, request.params.id);
+      payment = updatedRow || { ...payment, status: "expired" };
     }
     response.json({ payment: paymentJson(payment, request) });
   }));

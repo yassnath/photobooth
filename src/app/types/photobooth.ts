@@ -99,6 +99,7 @@ export interface CameraDevice {
   deviceId: string;
   groupId: string;
   label: string;
+  kind?: "integrated" | "external" | "virtual" | "other";
 }
 
 export interface BoothBackgroundPreset {

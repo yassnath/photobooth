@@ -575,15 +575,35 @@
     line-height: 1.5;
   }
 
-  button {
+  button,
+  [role="button"],
+  [type="button"],
+  [type="reset"],
+  [type="submit"] {
+    cursor: pointer;
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  [type="button"]:disabled,
+  [type="reset"]:disabled,
+  [type="submit"]:disabled {
+    cursor: not-allowed;
   }
 
   input {
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+/* Responsive Welcome Screen: Hide photo wings in portrait or narrow screens to prevent cut-offs */
+@media (max-width: 1200px), (orientation: portrait) {
+  .welcome-side-wing {
+    display: none !important;
   }
 }

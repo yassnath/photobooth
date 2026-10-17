@@ -1,3 +1,28 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+/* Global Interactive Pointer Cursors: Pastikan semua tombol & elemen interaktif menampilkan pointer berbentuk jari */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[type="button"]:not(:disabled),
+[type="reset"]:not(:disabled),
+[type="submit"]:not(:disabled),
+a[href],
+summary,
+select:not(:disabled),
+label[for],
+label:has(input),
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+[type="button"]:disabled,
+[type="reset"]:disabled,
+[type="submit"]:disabled,
+select:disabled,
+.cursor-not-allowed {
+  cursor: not-allowed !important;
+}

@@ -19,7 +19,7 @@ export function ModeSelectorScreen({ initialMode, onBack, onSelect }: ModeSelect
 
   return (
     <motion.div
-      className="relative min-h-[100dvh] overflow-hidden"
+      className="relative z-30 min-h-[100dvh] overflow-hidden"
       initial={pageIn}
       animate={pageAnimate}
       exit={pageOut}

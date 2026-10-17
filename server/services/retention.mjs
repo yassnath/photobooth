@@ -11,7 +11,7 @@ export async function runRetention(database, storage) {
     }
   }
 
-  const expiredOrders = await database.run("UPDATE orders SET status = 'expired', updated_at = ? WHERE status = 'pending' AND expires_at <= ?", now, now);
+  const expiredOrders = await database.run("DELETE FROM orders WHERE status IN ('failed', 'expired', 'cancel') OR (status = 'pending' AND expires_at <= ?)", now);
   await database.run("DELETE FROM admin_sessions WHERE expires_at <= ?", now);
   await database.run("DELETE FROM sessions WHERE expires_at <= ? AND NOT EXISTS (SELECT 1 FROM photos WHERE photos.session_id = sessions.id)", now);
 

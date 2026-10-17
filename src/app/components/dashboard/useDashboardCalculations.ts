@@ -166,16 +166,19 @@ export function useDashboardCalculations({
     const map = new Map<string, OrderRecord>();
     (orders || []).forEach((order) => {
       if (!order?.id || !order.orderId) return;
+      // Hanya masukkan pembayaran yang lunas (uang masuk), abaikan failed/expired/pending
+      if (order.status !== "paid") return;
       map.set(order.id, order);
     });
     sessions.forEach((session) => {
       if (!session.payment?.id || map.has(session.payment.id)) return;
+      if (session.payment.status && session.payment.status !== "paid") return;
       map.set(session.payment.id, {
         id: session.payment.id,
         orderId: session.payment.orderId || session.payment.id,
         provider: session.payment.provider || "local",
         method: session.payment.method,
-        status: session.payment.status || "paid",
+        status: "paid",
         baseAmount: session.payment.baseAmount || session.payment.amount,
         discountAmount: session.payment.discountAmount || 0,
         amount: session.payment.amount,

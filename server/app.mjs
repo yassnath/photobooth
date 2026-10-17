@@ -142,6 +142,7 @@ export async function createApplication(config) {
         FROM orders o
         LEFT JOIN vouchers v ON v.id = o.voucher_id
         LEFT JOIN sessions s ON s.order_id = o.id
+        WHERE o.status = 'paid'
         ORDER BY o.created_at DESC
         LIMIT ? OFFSET ?
       `, limit, offset),
